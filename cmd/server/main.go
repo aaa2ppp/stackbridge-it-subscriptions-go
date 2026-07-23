@@ -12,6 +12,7 @@ import (
 	"subscriptions/internal/api"
 	"subscriptions/internal/config"
 	"subscriptions/internal/lib/logging"
+	"subscriptions/internal/service"
 	"subscriptions/pkg/api/docs"
 
 	httpSwagger "github.com/swaggo/http-swagger/v2"
@@ -43,19 +44,8 @@ func main() {
 func run(ctx context.Context, cfg config.Config) (err error) {
 	logger := logging.New(cfg.Logger)
 
-	// storage, err := openStorage(cfg)
-	// if err != nil {
-	// 	return err
-	// }
-	// if storage, ok := storage.(io.Closer); ok {
-	// 	defer func() {
-	// 		if closeErr := storage.Close(); closeErr != nil && err == nil {
-	// 			err = closeErr
-	// 		}
-	// 	}()
-	// }
-
-	api := api.New(nil) // TODO: need service implementation
+	svc := service.New(nil) // TODO: need repository implementation
+	api := api.New(svc)
 
 	router := http.NewServeMux()
 	router.Handle("/swagger/", httpSwagger.Handler(httpSwagger.URL("/swagger/doc.json")))

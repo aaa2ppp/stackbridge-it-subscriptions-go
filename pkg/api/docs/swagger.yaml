@@ -1,9 +1,222 @@
 basePath: /api
+definitions:
+  api.CreateSubscriptionRequest:
+    properties:
+      end_date:
+        example: 12-2025
+        type: string
+      price:
+        minimum: 400
+        type: integer
+      service_name:
+        example: Yandex Plus
+        type: string
+      start_date:
+        example: 07-2025
+        type: string
+      user_id:
+        example: 60601fee-2bf1-4721-ae6f-7636e79a0cba
+        type: string
+    required:
+    - price
+    - service_name
+    - start_date
+    - user_id
+    type: object
+  api.UpdateSubscriptionRequest:
+    properties:
+      end_date:
+        example: 12-2025
+        type: string
+      price:
+        minimum: 400
+        type: integer
+      service_name:
+        example: Yandex Plus
+        type: string
+      start_date:
+        example: 07-2025
+        type: string
+    required:
+    - price
+    - service_name
+    - start_date
+    type: object
+  model.GetTotalCostResponse:
+    properties:
+      total_cost:
+        type: integer
+    type: object
+  model.Subscription:
+    properties:
+      end_date:
+        example: 12-2025
+        type: string
+      id:
+        type: integer
+      price:
+        type: integer
+      service_name:
+        type: string
+      start_date:
+        example: 07-2025
+        type: string
+      user_id:
+        example: 60601fee-2bf1-4721-ae6f-7636e79a0cba
+        type: string
+    type: object
 info:
   contact: {}
   license:
     name: Apache 2.0
   title: Сервис для агрегации данных об онлайн подписках пользователей
   version: "1.0"
-paths: {}
+paths:
+  /subscriptions:
+    get:
+      parameters:
+      - default: 0
+        description: вернуть записи следующие за after_id
+        in: query
+        minimum: 0
+        name: after_id
+        type: integer
+      - default: 1
+        description: вернуть не более limit записей
+        in: query
+        minimum: 1
+        name: limit
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/model.Subscription'
+            type: array
+        "400":
+          description: Bad Request
+        "409":
+          description: Conflict
+      summary: Получить список подписок
+      tags:
+      - subscriptions
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: CreateSubscriptionRequest
+        in: body
+        name: req
+        required: true
+        schema:
+          $ref: '#/definitions/api.CreateSubscriptionRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/model.Subscription'
+        "400":
+          description: Bad Request
+        "409":
+          description: Conflict
+      summary: Создать подписку
+      tags:
+      - subscriptions
+  /subscriptions/{id}:
+    delete:
+      parameters:
+      - description: Subscription ID
+        example: 42
+        in: path
+        minimum: 1
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+        "400":
+          description: Bad Request
+      summary: Удалить подписку
+      tags:
+      - subscriptions
+    get:
+      parameters:
+      - description: Subscription ID
+        example: 42
+        in: path
+        minimum: 1
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/model.Subscription'
+        "400":
+          description: Bad Request
+        "404":
+          description: Not Found
+        "409":
+          description: Conflict
+      summary: Получить подписку
+      tags:
+      - subscriptions
+    put:
+      consumes:
+      - application/json
+      parameters:
+      - description: Subscription ID
+        example: 42
+        in: path
+        minimum: 1
+        name: id
+        required: true
+        type: integer
+      - description: UpdateSubscriptionRequest
+        in: body
+        name: req
+        required: true
+        schema:
+          $ref: '#/definitions/api.UpdateSubscriptionRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/model.Subscription'
+        "400":
+          description: Bad Request
+        "404":
+          description: Not Found
+        "409":
+          description: Conflict
+      summary: Обновить подписку
+      tags:
+      - subscriptions
+  /subscriptions/total:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/model.GetTotalCostResponse'
+        "400":
+          description: Bad Request
+      summary: Подсчет суммарной стоимости подписок
+      tags:
+      - subscriptions
 swagger: "2.0"

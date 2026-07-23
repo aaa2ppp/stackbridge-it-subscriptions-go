@@ -5,7 +5,7 @@ import (
 	"os"
 	"time"
 
-	"subscriptions/internal/lib/getenv"
+	"subscriptions/internal/lib/getval"
 	"subscriptions/internal/lib/logging"
 )
 
@@ -39,28 +39,28 @@ const (
 )
 
 func Load() (Config, error) {
-	ge := getenv.New(os.LookupEnv)
+	gv := getval.New(os.LookupEnv)
 
 	cfg := Config{
 		Logger: Logger{
-			Level:     ge.LogLevel("LOG_LEVEL", optional, slog.LevelInfo),
-			Plaintext: ge.Bool("LOG_PLAINTEXT", optional, false),
+			Level:     gv.LogLevel("LOG_LEVEL", optional, slog.LevelInfo),
+			Plaintext: gv.Bool("LOG_PLAINTEXT", optional, false),
 		},
 		DB: DB{
-			Addr:     ge.String("DB_ADDR", required, ""),
-			User:     ge.String("DB_USER", optional, "postgres"),
-			Password: ge.String("DB_PASSWORD", required, ""),
-			DBName:   ge.String("DB_NAME", optional, "postgres"),
-			SSLMode:  ge.String("DB_SSLMODE", optional, "disable"),
+			Addr:     gv.String("DB_ADDR", required, ""),
+			User:     gv.String("DB_USER", optional, "postgres"),
+			Password: gv.String("DB_PASSWORD", required, ""),
+			DBName:   gv.String("DB_NAME", optional, "postgres"),
+			SSLMode:  gv.String("DB_SSLMODE", optional, "disable"),
 		},
 		Server: Server{
-			Addr:            ge.String("SERVER_ADDR", required, ""),
-			ReadTimeout:     ge.Duration("SERVER_READ_TIMEOUT", optional, 5*time.Second),
-			WriteTimeout:    ge.Duration("SERVER_WRITE_TIMEOUT", optional, 5*time.Second),
-			RequestTimeout:  ge.Duration("SERVER_REQUEST_TIMEOUT", optional, 5*time.Second),
-			ShutdownTimeout: ge.Duration("SERVER_SHUTDOWN_TIMEOUT", optional, 10*time.Second),
+			Addr:            gv.String("SERVER_ADDR", required, ""),
+			ReadTimeout:     gv.Duration("SERVER_READ_TIMEOUT", optional, 5*time.Second),
+			WriteTimeout:    gv.Duration("SERVER_WRITE_TIMEOUT", optional, 5*time.Second),
+			RequestTimeout:  gv.Duration("SERVER_REQUEST_TIMEOUT", optional, 5*time.Second),
+			ShutdownTimeout: gv.Duration("SERVER_SHUTDOWN_TIMEOUT", optional, 10*time.Second),
 		},
 	}
 
-	return cfg, ge.Err()
+	return cfg, gv.Err()
 }
