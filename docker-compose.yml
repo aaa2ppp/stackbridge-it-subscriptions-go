@@ -1,0 +1,50 @@
+services:
+  db:
+    image: postgres:18.4-alpine3.24
+    env_file: 
+      - ./.env
+    environment:
+      POSTGRES_DB: ${DB_NAME:-postgres}
+      POSTGRES_USER: ${DB_USER:-postgres}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+      PGDATA: /var/lib/postgresql/data/pgdata
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -d ${DB_NAME:-postgres} -U ${DB_USER:-postgres}"]
+      interval: 2s
+      timeout: 5s
+      retries: 5
+  
+  migrate:
+    build:
+      target: migrate 
+    env_file:
+      - ./.env
+    environment:
+      - DB_ADDR=db:5432
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: "no"
+
+  server:
+    build:
+      target: server
+    ports:
+      - "8080:8080"
+    env_file: 
+      - ./.env
+    environment:
+      - DB_ADDR=db:5432
+      - SERVER_ADDR=0.0.0.0:8080
+    depends_on:
+      db:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+
+volumes:
+  pgdata:
