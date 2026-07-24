@@ -110,11 +110,46 @@ const docTemplate = `{
                     "subscriptions"
                 ],
                 "summary": "Подсчет суммарной стоимости подписок",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "format": "uuid",
+                        "x-example": "60601fee-2bf1-4721-ae6f-7636e79a0cba",
+                        "description": "User ID",
+                        "name": "user_id",
+                        "in": "query",
+                        "required": true
+                    },
+                    {
+                        "minLength": 1,
+                        "type": "string",
+                        "x-example": "Yandex Plus",
+                        "description": "Service Name",
+                        "name": "service_name",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "format": "date",
+                        "x-example": "2025-07-04",
+                        "description": "From Date",
+                        "name": "from_date",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "format": "date",
+                        "x-example": "2025-08-25",
+                        "description": "To Date",
+                        "name": "to_date",
+                        "in": "query"
+                    }
+                ],
                 "responses": {
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/model.GetTotalCostResponse"
+                            "$ref": "#/definitions/model.TotalCostResponse"
                         }
                     },
                     "400": {
@@ -136,7 +171,7 @@ const docTemplate = `{
                     {
                         "minimum": 1,
                         "type": "integer",
-                        "example": 42,
+                        "x-example": "42",
                         "description": "Subscription ID",
                         "name": "id",
                         "in": "path",
@@ -161,7 +196,36 @@ const docTemplate = `{
                     }
                 }
             },
-            "put": {
+            "delete": {
+                "description": "Идемпотентен. Успех говорит, что подписка или была удалена или отсутсвует.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "subscriptions"
+                ],
+                "summary": "Удалить подписку",
+                "parameters": [
+                    {
+                        "minimum": 1,
+                        "type": "integer",
+                        "x-example": "42",
+                        "description": "Subscription ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "No Content"
+                    },
+                    "400": {
+                        "description": "Bad Request"
+                    }
+                }
+            },
+            "patch": {
                 "consumes": [
                     "application/json"
                 ],
@@ -176,7 +240,7 @@ const docTemplate = `{
                     {
                         "minimum": 1,
                         "type": "integer",
-                        "example": 42,
+                        "x-example": "42",
                         "description": "Subscription ID",
                         "name": "id",
                         "in": "path",
@@ -206,35 +270,10 @@ const docTemplate = `{
                         "description": "Not Found"
                     },
                     "409": {
-                        "description": "Conflict"
-                    }
-                }
-            },
-            "delete": {
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "subscriptions"
-                ],
-                "summary": "Удалить подписку",
-                "parameters": [
-                    {
-                        "minimum": 1,
-                        "type": "integer",
-                        "example": 42,
-                        "description": "Subscription ID",
-                        "name": "id",
-                        "in": "path",
-                        "required": true
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK"
-                    },
-                    "400": {
-                        "description": "Bad Request"
+                        "description": "Conflict",
+                        "schema": {
+                            "$ref": "#/definitions/model.Subscription"
+                        }
                     }
                 }
             }
@@ -244,7 +283,6 @@ const docTemplate = `{
         "api.CreateSubscriptionRequest": {
             "type": "object",
             "required": [
-                "price",
                 "service_name",
                 "start_date",
                 "user_id"
@@ -256,7 +294,8 @@ const docTemplate = `{
                 },
                 "price": {
                     "type": "integer",
-                    "minimum": 400
+                    "default": 0,
+                    "minimum": 0
                 },
                 "service_name": {
                     "type": "string",
@@ -268,17 +307,13 @@ const docTemplate = `{
                 },
                 "user_id": {
                     "type": "string",
+                    "format": "uuid",
                     "example": "60601fee-2bf1-4721-ae6f-7636e79a0cba"
                 }
             }
         },
         "api.UpdateSubscriptionRequest": {
             "type": "object",
-            "required": [
-                "price",
-                "service_name",
-                "start_date"
-            ],
             "properties": {
                 "end_date": {
                     "type": "string",
@@ -295,20 +330,22 @@ const docTemplate = `{
                 "start_date": {
                     "type": "string",
                     "example": "07-2025"
-                }
-            }
-        },
-        "model.GetTotalCostResponse": {
-            "type": "object",
-            "properties": {
-                "total_cost": {
-                    "type": "integer"
+                },
+                "updated": {
+                    "type": "string",
+                    "format": "date-time",
+                    "example": "2025-07-01T14:38:00.000Z"
                 }
             }
         },
         "model.Subscription": {
             "type": "object",
             "properties": {
+                "created": {
+                    "type": "string",
+                    "format": "date-time",
+                    "example": "2025-07-01T14:38:00.000Z"
+                },
                 "end_date": {
                     "type": "string",
                     "example": "12-2025"
@@ -326,9 +363,22 @@ const docTemplate = `{
                     "type": "string",
                     "example": "07-2025"
                 },
+                "updated": {
+                    "type": "string",
+                    "format": "date-time",
+                    "example": "2025-07-01T14:38:00.000Z"
+                },
                 "user_id": {
                     "type": "string",
                     "example": "60601fee-2bf1-4721-ae6f-7636e79a0cba"
+                }
+            }
+        },
+        "model.TotalCostResponse": {
+            "type": "object",
+            "properties": {
+                "total_cost": {
+                    "type": "integer"
                 }
             }
         }
@@ -341,7 +391,7 @@ var SwaggerInfo = &swag.Spec{
 	Host:             "",
 	BasePath:         "/api",
 	Schemes:          []string{},
-	Title:            "Сервис для агрегации данных об онлайн подписках пользователей",
+	Title:            "Сервис агрегации данных об онлайн подписках пользователей",
 	Description:      "",
 	InfoInstanceName: "swagger",
 	SwaggerTemplate:  docTemplate,

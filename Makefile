@@ -111,7 +111,7 @@ check-goose: ## install goose if need
 	@which goose 2>/dev/null || go install github.com/pressly/goose/v3/cmd/goose@v3.27.1
 
 check-swag: ## install swag if need
-	@which swag 2>/dev/null || go install github.com/swaggo/swag/cmd/swag@v1.16.4
+	@which swag 2>/dev/null || go install github.com/swaggo/swag/cmd/swag@v1.16.6
 
 check-stringer: ## install stringer if need
 	@which stringer 2>/dev/null || go install golang.org/x/tools/cmd/stringer@v0.46.0

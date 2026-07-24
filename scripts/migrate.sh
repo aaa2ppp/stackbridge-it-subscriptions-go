@@ -16,7 +16,7 @@ port=${DB_ADDR#*:}
 
 dbname=${DB_NAME:-postgres}
 user=${DB_USER:-postgres}
-password=${DB_PASSWORD?required}
+password=${DB_PASSWORD?DB_PASSWORD is not set. Please run: source dev-env}
 sslmode=${DB_SSLMODE:-disable}
 
 export PGPASSWORD=$password

@@ -3,7 +3,7 @@
 : ${DB_SERVICE:=db}
 : ${DB_USER:=postgres}
 : ${DB_NAME:=postgres}
-: ${DB_PASSWORD?DB_PASSWORD not set. Please run: . ./dev-env}
+: ${DB_PASSWORD?DB_PASSWORD is not set. Please run: source dev-env}
 : ${DB_CHECK_TIMEOUT:=30}
 : ${DB_CHECK_INTERVAL:=2}
 : ${DOCKER_COMPOSE:=docker-compose}

@@ -12,6 +12,7 @@ import (
 	"subscriptions/internal/api"
 	"subscriptions/internal/config"
 	"subscriptions/internal/lib/logging"
+	"subscriptions/internal/repo/pgrepo"
 	"subscriptions/internal/service"
 	"subscriptions/pkg/api/docs"
 
@@ -20,7 +21,7 @@ import (
 
 // main godoc
 //
-//	@title			Сервис для агрегации данных об онлайн подписках пользователей
+//	@title			Сервис агрегации данных об онлайн подписках пользователей
 //	@version		1.0
 //	@license.name	Apache 2.0
 //	@basepath		/api
@@ -44,7 +45,13 @@ func main() {
 func run(ctx context.Context, cfg config.Config) (err error) {
 	logger := logging.New(cfg.Logger)
 
-	svc := service.New(nil) // TODO: need repository implementation
+	repo, err := pgrepo.Open(ctx, cfg.DB)
+	if err != nil {
+		return err
+	}
+	defer repo.Close()
+
+	svc := service.New(repo)
 	api := api.New(svc)
 
 	router := http.NewServeMux()

@@ -6,7 +6,8 @@ definitions:
         example: 12-2025
         type: string
       price:
-        minimum: 400
+        default: 0
+        minimum: 0
         type: integer
       service_name:
         example: Yandex Plus
@@ -16,9 +17,9 @@ definitions:
         type: string
       user_id:
         example: 60601fee-2bf1-4721-ae6f-7636e79a0cba
+        format: uuid
         type: string
     required:
-    - price
     - service_name
     - start_date
     - user_id
@@ -37,18 +38,17 @@ definitions:
       start_date:
         example: 07-2025
         type: string
-    required:
-    - price
-    - service_name
-    - start_date
-    type: object
-  model.GetTotalCostResponse:
-    properties:
-      total_cost:
-        type: integer
+      updated:
+        example: "2025-07-01T14:38:00.000Z"
+        format: date-time
+        type: string
     type: object
   model.Subscription:
     properties:
+      created:
+        example: "2025-07-01T14:38:00.000Z"
+        format: date-time
+        type: string
       end_date:
         example: 12-2025
         type: string
@@ -61,15 +61,24 @@ definitions:
       start_date:
         example: 07-2025
         type: string
+      updated:
+        example: "2025-07-01T14:38:00.000Z"
+        format: date-time
+        type: string
       user_id:
         example: 60601fee-2bf1-4721-ae6f-7636e79a0cba
         type: string
+    type: object
+  model.TotalCostResponse:
+    properties:
+      total_cost:
+        type: integer
     type: object
 info:
   contact: {}
   license:
     name: Apache 2.0
-  title: Сервис для агрегации данных об онлайн подписках пользователей
+  title: Сервис агрегации данных об онлайн подписках пользователей
   version: "1.0"
 paths:
   /subscriptions:
@@ -129,19 +138,21 @@ paths:
       - subscriptions
   /subscriptions/{id}:
     delete:
+      description: Идемпотентен. Успех говорит, что подписка или была удалена или
+        отсутсвует.
       parameters:
       - description: Subscription ID
-        example: 42
         in: path
         minimum: 1
         name: id
         required: true
         type: integer
+        x-example: "42"
       produces:
       - application/json
       responses:
-        "200":
-          description: OK
+        "204":
+          description: No Content
         "400":
           description: Bad Request
       summary: Удалить подписку
@@ -150,12 +161,12 @@ paths:
     get:
       parameters:
       - description: Subscription ID
-        example: 42
         in: path
         minimum: 1
         name: id
         required: true
         type: integer
+        x-example: "42"
       produces:
       - application/json
       responses:
@@ -172,17 +183,17 @@ paths:
       summary: Получить подписку
       tags:
       - subscriptions
-    put:
+    patch:
       consumes:
       - application/json
       parameters:
       - description: Subscription ID
-        example: 42
         in: path
         minimum: 1
         name: id
         required: true
         type: integer
+        x-example: "42"
       - description: UpdateSubscriptionRequest
         in: body
         name: req
@@ -202,18 +213,46 @@ paths:
           description: Not Found
         "409":
           description: Conflict
+          schema:
+            $ref: '#/definitions/model.Subscription'
       summary: Обновить подписку
       tags:
       - subscriptions
   /subscriptions/total:
     get:
+      parameters:
+      - description: User ID
+        format: uuid
+        in: query
+        name: user_id
+        required: true
+        type: string
+        x-example: 60601fee-2bf1-4721-ae6f-7636e79a0cba
+      - description: Service Name
+        in: query
+        minLength: 1
+        name: service_name
+        type: string
+        x-example: Yandex Plus
+      - description: From Date
+        format: date
+        in: query
+        name: from_date
+        type: string
+        x-example: "2025-07-04"
+      - description: To Date
+        format: date
+        in: query
+        name: to_date
+        type: string
+        x-example: "2025-08-25"
       produces:
       - application/json
       responses:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/model.GetTotalCostResponse'
+            $ref: '#/definitions/model.TotalCostResponse'
         "400":
           description: Bad Request
       summary: Подсчет суммарной стоимости подписок

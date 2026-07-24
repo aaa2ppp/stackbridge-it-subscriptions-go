@@ -8,6 +8,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/google/uuid"
 )
 
 var ErrRequired = errors.New("is required")
@@ -120,6 +122,20 @@ func (gv *GetValue) URL(key string, required bool, defaultValue string) string {
 			return "", err
 		}
 		return s, nil
+	})
+	if err != nil {
+		gv.errs = append(gv.errs, err)
+	}
+	return v
+}
+
+func (gv *GetValue) UUID(key string, required bool, defaultValue uuid.UUID) uuid.UUID {
+	v, err := getValue(gv.lookup, key, required, defaultValue, func(s string) (uuid.UUID, error) {
+		v, err := uuid.Parse(s)
+		if err != nil {
+			return uuid.UUID{}, err
+		}
+		return v, nil
 	})
 	if err != nil {
 		gv.errs = append(gv.errs, err)

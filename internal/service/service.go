@@ -40,13 +40,13 @@ func (s *Service) List(ctx context.Context, req model.ListSubscriptionsRequest) 
 }
 
 // Update implements [api.Service].
-func (s *Service) Update(ctx context.Context, req model.Subscription) (model.Subscription, error) {
+func (s *Service) Update(ctx context.Context, req model.UpdateSubscriptionRequest) (model.Subscription, error) {
 	return model.Subscription{}, model.ErrNotImplemented
 }
 
 // GetTotalCost implements [api.Service].
-func (s *Service) GetTotalCost(ctx context.Context, req model.GetTotalCostRequest) (model.GetTotalCostResponse, error) {
-	panic("unimplemented")
+func (s *Service) GetTotalCost(ctx context.Context, req model.TotalCostRequest) (model.TotalCostResponse, error) {
+	return model.TotalCostResponse{}, model.ErrNotImplemented
 }
 
 var _ api.Service = &Service{}

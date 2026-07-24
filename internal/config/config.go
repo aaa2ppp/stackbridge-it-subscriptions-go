@@ -7,17 +7,11 @@ import (
 
 	"subscriptions/internal/lib/getval"
 	"subscriptions/internal/lib/logging"
+	"subscriptions/internal/repo"
 )
 
 type Logger = logging.Config
-
-type DB struct {
-	Addr     string
-	User     string
-	Password string
-	DBName   string
-	SSLMode  string
-}
+type DB = repo.Config
 
 type Server struct {
 	Addr            string

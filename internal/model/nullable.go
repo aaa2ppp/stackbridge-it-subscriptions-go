@@ -1,7 +1,10 @@
-package nullable
+package model
 
-import "encoding/json"
+import (
+	"encoding/json"
+)
 
+// Nullable позволяет различать отсутствие поля и значение null. Всегда используйте 'omitzero' в 'json' теге.
 type Nullable[T any] struct {
 	Value   T    `json:"-"`
 	Defined bool `json:"-"`
@@ -31,7 +34,7 @@ func (n *Nullable[T]) UnmarshalJSON(b []byte) error {
 }
 
 func (n Nullable[T]) IsZero() bool {
-	return !n.Valid
+	return !n.Defined
 }
 
 var _ json.Unmarshaler = &Nullable[int]{}

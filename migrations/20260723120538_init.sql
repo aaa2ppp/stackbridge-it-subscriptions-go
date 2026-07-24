@@ -4,7 +4,10 @@ CREATE TABLE subscription (
     service_name VARCHAR(255),
     price bigint NOT NULL,
     user_id uuid NOT NULL,
-    start_date date NOT NULL
+    start_date date NOT NULL,
+    end_date date,
+    created timestamptz NOT NULL DEFAULT NOW(),
+    updated timestamptz NOT NULL DEFAULT NOW()
 );
 
 -- +goose Down
