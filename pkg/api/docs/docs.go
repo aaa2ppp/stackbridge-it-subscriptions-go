@@ -91,7 +91,7 @@ const docTemplate = `{
                 }
             },
             "post": {
-                "description": "end_date - опциональное поле. Если не указано или передано как null,\nподписка считается бессрочной (внутренне используется 12-9999)",
+                "description": "` + "`" + `end_date` + "`" + ` - опциональное поле. Если не указано или передано как null,\nподписка считается бессрочной (внутренне используется 12-9999)",
                 "consumes": [
                     "application/json"
                 ],
@@ -128,6 +128,7 @@ const docTemplate = `{
         },
         "/subscriptions/total": {
             "get": {
+                "description": "Подсчет стоимости подписок за указанный период.\nЕсли ` + "`" + `to_date` + "`" + ` не указан, используется текущий месяц.",
                 "produces": [
                     "application/json"
                 ],
@@ -154,6 +155,7 @@ const docTemplate = `{
                     },
                     {
                         "type": "string",
+                        "default": "01-0001",
                         "x-example": "07-2025",
                         "description": "From Date",
                         "name": "from_date",
@@ -245,6 +247,7 @@ const docTemplate = `{
                 }
             },
             "patch": {
+                "description": "Обновляет только переданные поля. ` + "`" + `user_id` + "`" + ` не может быть изменен.",
                 "consumes": [
                     "application/json"
                 ],

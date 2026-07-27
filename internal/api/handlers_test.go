@@ -89,6 +89,11 @@ func MonthYear(m time.Month, y int) model.MonthYear {
 	return model.MonthYear{Time: time.Date(y, m, 1, 0, 0, 0, 0, time.UTC)}
 }
 
+func CurrentMonthYear() model.MonthYear {
+	now := time.Now()
+	return MonthYear(now.Month(), now.Year())
+}
+
 func Nullable[T any](v T, valid, defined bool) model.Nullable[T] {
 	return model.Nullable[T]{Null: sql.Null[T]{V: v, Valid: valid}, Defined: defined}
 }
@@ -134,6 +139,39 @@ func TestHandlers(t *testing.T) {
 				"user_id":      "60601fee-2bf1-4721-ae6f-7636e79a0cba",
 				"start_date":   "07-2025",
 				"end_date":     "12-2025",
+				"created":      "0001-01-01T00:00:00Z",
+				"updated":      "0001-01-01T00:00:00Z"
+			}`,
+		},
+		{
+			name:        "create null end_date",
+			query:       "POST /subscriptions",
+			contentType: "application/json",
+			body: `{
+				"service_name": "Yandex Plus",
+				"price":        400,
+				"user_id":      "60601fee-2bf1-4721-ae6f-7636e79a0cba",
+				"start_date":   "07-2025",
+				"end_date":     null
+			}`,
+			wantReq: model.Subscription{
+				ServiceName: "Yandex Plus",
+				Price:       400,
+				UserID:      uuid.MustParse("60601fee-2bf1-4721-ae6f-7636e79a0cba"),
+				StartDate:   MonthYear(7, 2025),
+				EndDate:     api.MonthYearInfinity,
+			},
+			svc: mockService{
+				create: func(req model.Subscription) (model.Subscription, error) { req.ID = 42; return req, nil },
+			},
+			wantStatusCode: 201,
+			wantBody: `{
+				"id":           42,
+				"service_name": "Yandex Plus",
+				"price":        400,
+				"user_id":      "60601fee-2bf1-4721-ae6f-7636e79a0cba",
+				"start_date":   "07-2025",
+				"end_date":     "12-9999",
 				"created":      "0001-01-01T00:00:00Z",
 				"updated":      "0001-01-01T00:00:00Z"
 			}`,
@@ -185,7 +223,6 @@ func TestHandlers(t *testing.T) {
 				"user_id":      "60601fee-2bf1-4721-ae6f-7636e79a0cba",
 				"end_date":     "12-2025"
 			}`,
-			svc:            mockService{},
 			wantStatusCode: 400,
 		},
 		{
@@ -199,7 +236,6 @@ func TestHandlers(t *testing.T) {
 				"start_date":   "12-2025",
 				"end_date":     "07-2025"
 			}`,
-			svc:            mockService{},
 			wantStatusCode: 400,
 		},
 		{
@@ -523,7 +559,7 @@ func TestHandlers(t *testing.T) {
 			query: "GET /subscriptions/total",
 			wantReq: model.SubscriptionFilter{
 				FromDate: MonthYear(1, 1),
-				ToDate:   MonthYear(12, 9999),
+				ToDate:   CurrentMonthYear(),
 			},
 			svc: mockService{
 				getTotalCost: func(req model.SubscriptionFilter) (model.TotalCostResponse, error) {

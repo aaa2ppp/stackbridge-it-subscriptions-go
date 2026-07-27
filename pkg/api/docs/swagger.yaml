@@ -150,7 +150,7 @@ paths:
       consumes:
       - application/json
       description: |-
-        end_date - опциональное поле. Если не указано или передано как null,
+        `end_date` - опциональное поле. Если не указано или передано как null,
         подписка считается бессрочной (внутренне используется 12-9999)
       parameters:
       - description: CreateSubscriptionRequest
@@ -219,6 +219,7 @@ paths:
     patch:
       consumes:
       - application/json
+      description: Обновляет только переданные поля. `user_id` не может быть изменен.
       parameters:
       - description: Subscription ID
         in: path
@@ -253,6 +254,9 @@ paths:
       - subscriptions
   /subscriptions/total:
     get:
+      description: |-
+        Подсчет стоимости подписок за указанный период.
+        Если `to_date` не указан, используется текущий месяц.
       parameters:
       - description: User ID
         format: uuid
@@ -266,7 +270,8 @@ paths:
         name: service_name
         type: string
         x-example: Yandex Plus
-      - description: From Date
+      - default: 01-0001
+        description: From Date
         in: query
         name: from_date
         type: string

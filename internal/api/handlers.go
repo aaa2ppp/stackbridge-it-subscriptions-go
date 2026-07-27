@@ -43,7 +43,7 @@ func New(svc Service) *http.ServeMux {
 //	@tags			subscriptions
 //	@router			/subscriptions [post]
 //	@summary		Создать подписку
-//	@description	end_date - опциональное поле. Если не указано или передано как null,
+//	@description	`end_date` - опциональное поле. Если не указано или передано как null,
 //	@description	подписка считается бессрочной (внутренне используется 12-9999)
 //	@accept			json
 //	@produce		json
@@ -179,7 +179,7 @@ func parseListSubscriptionsRequest(q url.Values) (model.ListSubscriptionsRequest
 		}
 	}
 
-	filter, err := parseSubscriptionFilter(q)
+	filter, err := parseSubscriptionFilter(q, MonthYearInfinity)
 	if err != nil {
 		errs = append(errs, err)
 	}
@@ -223,17 +223,18 @@ func GetSubscription(svc Service) http.HandlerFunc {
 
 // UpdateSubscription godoc
 //
-//	@tags		subscriptions
-//	@router		/subscriptions/{id} [patch]
-//	@summary	Обновить подписку
-//	@accept		json
-//	@produce	json
-//	@param		id	path		integer						true	"Subscription ID"	minimum(1)	extensions(x-example=42)
-//	@param		req	body		UpdateSubscriptionRequest	true	"UpdateSubscriptionRequest"
-//	@success	200	{object}	model.Subscription
-//	@failure	400
-//	@failure	404
-//	@failure	409	{object}	ConflictResponse
+//	@tags			subscriptions
+//	@router			/subscriptions/{id} [patch]
+//	@summary		Обновить подписку
+//	@description	Обновляет только переданные поля. `user_id` не может быть изменен.
+//	@accept			json
+//	@produce		json
+//	@param			id	path		integer						true	"Subscription ID"	minimum(1)	extensions(x-example=42)
+//	@param			req	body		UpdateSubscriptionRequest	true	"UpdateSubscriptionRequest"
+//	@success		200	{object}	model.Subscription
+//	@failure		400
+//	@failure		404
+//	@failure		409	{object}	ConflictResponse
 func UpdateSubscription(svc Service) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		h := newHelper(w, r, "UpdateSubscription")
@@ -346,21 +347,25 @@ func DeleteSubscription(svc Service) http.HandlerFunc {
 
 // GetTotalCost godoc
 //
-//	@tags		subscriptions
-//	@router		/subscriptions/total [get]
-//	@summary	Подсчет суммарной стоимости подписок
-//	@produce	json
-//	@param		user_id			query		string	false	"User ID"		format(uuid)	extensions(x-example=60601fee-2bf1-4721-ae6f-7636e79a0cba)
-//	@param		service_name	query		string	false	"Service Name"	minlength(1)	extensions(x-example=Yandex Plus)
-//	@param		from_date		query		string	false	"From Date"		extensions(x-example=07-2025)
-//	@param		to_date			query		string	false	"To Date"		extensions(x-example=08-2025)
-//	@success	200				{object}	model.TotalCostResponse
-//	@failure	400
+//	@tags			subscriptions
+//	@router			/subscriptions/total [get]
+//	@summary		Подсчет суммарной стоимости подписок
+//	@description	Подсчет стоимости подписок за указанный период.
+//	@description	Если `to_date` не указан, используется текущий месяц.
+//	@produce		json
+//	@param			user_id			query		string	false	"User ID"		format(uuid)					extensions(x-example=60601fee-2bf1-4721-ae6f-7636e79a0cba)
+//	@param			service_name	query		string	false	"Service Name"	minlength(1)					extensions(x-example=Yandex Plus)
+//	@param			from_date		query		string	false	"From Date"		extensions(x-example=07-2025)	default(01-0001)
+//	@param			to_date			query		string	false	"To Date"		extensions(x-example=08-2025)
+//	@success		200				{object}	model.TotalCostResponse
+//	@failure		400
 func GetTotalCost(svc Service) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		h := newHelper(w, r, "GetTotalCost")
 
-		req, err := parseSubscriptionFilter(r.URL.Query())
+		now := time.Now()
+		curMonth := model.MonthYear{Time: time.Date(now.Year(), now.Month(), 1, 0, 0, 0, 0, time.UTC)}
+		req, err := parseSubscriptionFilter(r.URL.Query(), curMonth)
 		if err != nil {
 			h.writeHTTPError(&httpError{err.Error(), http.StatusBadRequest})
 			return
@@ -376,7 +381,7 @@ func GetTotalCost(svc Service) http.HandlerFunc {
 	}
 }
 
-func parseSubscriptionFilter(q url.Values) (model.SubscriptionFilter, error) {
+func parseSubscriptionFilter(q url.Values, defaultToDate model.MonthYear) (model.SubscriptionFilter, error) {
 	var req model.SubscriptionFilter
 	var errs []error
 
@@ -416,7 +421,7 @@ func parseSubscriptionFilter(q url.Values) (model.SubscriptionFilter, error) {
 	}
 
 	if !q.Has("to_date") {
-		req.ToDate = MonthYearInfinity
+		req.ToDate = defaultToDate
 	} else {
 		s := q.Get("to_date")
 		v, err := time.Parse(model.MonthYearLayout, s)
