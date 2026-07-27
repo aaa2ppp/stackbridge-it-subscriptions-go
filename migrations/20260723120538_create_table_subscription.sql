@@ -5,9 +5,10 @@ CREATE TABLE subscription (
     price bigint NOT NULL,
     user_id uuid NOT NULL,
     start_date date NOT NULL,
-    end_date date,
+    end_date date NOT NULL,
     created timestamptz NOT NULL DEFAULT NOW(),
-    updated timestamptz NOT NULL DEFAULT NOW()
+    updated timestamptz NOT NULL DEFAULT NOW(),
+    deleted timestamptz
 );
 
 -- +goose Down

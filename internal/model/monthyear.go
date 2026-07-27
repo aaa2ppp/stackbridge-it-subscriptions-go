@@ -48,6 +48,10 @@ func (my MonthYear) IsZero() bool {
 	return my.Time.IsZero()
 }
 
+func (my MonthYear) Sub(other MonthYear) int {
+	return (my.Year()-other.Year())*12 + int(my.Month()) - int(other.Month())
+}
+
 var _ json.Unmarshaler = &MonthYear{}
 var _ json.Marshaler = MonthYear{}
 var _ sql.Scanner = &MonthYear{}

@@ -1,14 +1,15 @@
 package model
 
 import (
+	"database/sql"
+	"database/sql/driver"
 	"encoding/json"
 )
 
 // Nullable позволяет различать отсутствие поля и значение null. Всегда используйте 'omitzero' в 'json' теге.
 type Nullable[T any] struct {
-	Value   T    `json:"-"`
-	Defined bool `json:"-"`
-	Valid   bool `json:"-"`
+	sql.Null[T] `json:"-"`
+	Defined     bool `json:"-"`
 }
 
 // MarshalJSON implements [json.Marshaler].
@@ -16,7 +17,7 @@ func (n Nullable[T]) MarshalJSON() ([]byte, error) {
 	if !n.Valid {
 		return []byte("null"), nil
 	}
-	return json.Marshal(n.Value)
+	return json.Marshal(n.V)
 }
 
 // UnmarshalJSON implements [json.Unmarshaler].
@@ -25,7 +26,7 @@ func (n *Nullable[T]) UnmarshalJSON(b []byte) error {
 		n.Defined = true
 		return nil
 	}
-	if err := json.Unmarshal(b, &n.Value); err != nil {
+	if err := json.Unmarshal(b, &n.V); err != nil {
 		return err
 	}
 	n.Defined = true
@@ -39,3 +40,5 @@ func (n Nullable[T]) IsZero() bool {
 
 var _ json.Unmarshaler = &Nullable[int]{}
 var _ json.Marshaler = Nullable[int]{}
+var _ sql.Scanner = &Nullable[int]{}
+var _ driver.Valuer = Nullable[int]{}
