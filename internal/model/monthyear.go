@@ -1,6 +1,7 @@
 package model
 
 import (
+	"bytes"
 	"database/sql"
 	"database/sql/driver"
 	"encoding/json"
@@ -16,6 +17,10 @@ type MonthYear struct {
 }
 
 func (my *MonthYear) UnmarshalJSON(b []byte) error {
+	if bytes.Equal(b, []byte("null")) {
+		return nil
+	}
+
 	s := strings.Trim(string(b), "\"")
 
 	t, err := time.ParseInLocation(MonthYearLayout, s, time.UTC)

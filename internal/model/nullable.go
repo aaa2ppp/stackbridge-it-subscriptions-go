@@ -1,6 +1,7 @@
 package model
 
 import (
+	"bytes"
 	"database/sql"
 	"database/sql/driver"
 	"encoding/json"
@@ -22,7 +23,7 @@ func (n Nullable[T]) MarshalJSON() ([]byte, error) {
 
 // UnmarshalJSON implements [json.Unmarshaler].
 func (n *Nullable[T]) UnmarshalJSON(b []byte) error {
-	if string(b) == "null" {
+	if bytes.Equal(b, []byte("null")) {
 		n.Defined = true
 		return nil
 	}
