@@ -2,11 +2,17 @@ package service
 
 import (
 	"context"
+	"fmt"
 	"subscriptions/internal/api"
 	"subscriptions/internal/model"
 )
 
 type Repository interface {
+	Create(ctx context.Context, req model.Subscription) (model.Subscription, error)
+	Get(ctx context.Context, id int64) (model.Subscription, error)
+	List(ctx context.Context, req model.ListSubscriptionsRequest) ([]model.Subscription, error)
+	Update(ctx context.Context, req model.Subscription) (model.Subscription, error)
+	Delete(ctx context.Context, id int64) error
 }
 
 type Service struct {
@@ -14,39 +20,87 @@ type Service struct {
 }
 
 func New(repo Repository) *Service {
-	return &Service{
-		repo: repo,
-	}
+	return &Service{repo: repo}
 }
 
 // Create implements [api.Service].
 func (s *Service) Create(ctx context.Context, req model.Subscription) (model.Subscription, error) {
-	return model.Subscription{}, model.ErrNotImplemented
+	return s.repo.Create(ctx, req)
 }
 
 // Delete implements [api.Service].
 func (s *Service) Delete(ctx context.Context, id int64) error {
-	return model.ErrNotImplemented
+	return s.repo.Delete(ctx, id)
 }
 
 // Get implements [api.Service].
 func (s *Service) Get(ctx context.Context, id int64) (model.Subscription, error) {
-	return model.Subscription{}, model.ErrNotImplemented
+	return s.repo.Get(ctx, id)
 }
 
 // List implements [api.Service].
 func (s *Service) List(ctx context.Context, req model.ListSubscriptionsRequest) ([]model.Subscription, error) {
-	return nil, model.ErrNotImplemented
+	return s.repo.List(ctx, req)
 }
 
 // Update implements [api.Service].
 func (s *Service) Update(ctx context.Context, req model.UpdateSubscriptionRequest) (model.Subscription, error) {
-	return model.Subscription{}, model.ErrNotImplemented
+	var zero model.Subscription
+
+	old, err := s.repo.Get(ctx, req.ID)
+	if err != nil {
+		return zero, err
+	}
+	if !old.Updated.Equal(req.Updated) {
+		return old, fmt.Errorf("%w: optimistic locking conflict (1)", model.ErrConflict)
+	}
+
+	sub := old
+	if req.ServiceName.Defined {
+		sub.ServiceName = req.ServiceName.V
+	}
+	if req.Price.Defined {
+		sub.Price = req.Price.V
+	}
+	if req.StartDate.Defined {
+		sub.StartDate = req.StartDate.V
+	}
+	if req.EndDate.Defined {
+		sub.EndDate = req.EndDate.V
+	}
+	if sub.EndDate.Before(sub.StartDate.Time) {
+		return old, fmt.Errorf("%w: end_date cannot be before start_date", model.ErrConflict)
+	}
+
+	return s.repo.Update(ctx, sub)
 }
 
 // GetTotalCost implements [api.Service].
-func (s *Service) GetTotalCost(ctx context.Context, req model.TotalCostRequest) (model.TotalCostResponse, error) {
-	return model.TotalCostResponse{}, model.ErrNotImplemented
+func (s *Service) GetTotalCost(ctx context.Context, req model.SubscriptionFilter) (model.TotalCostResponse, error) {
+	var zero model.TotalCostResponse
+
+	subs, err := s.repo.List(ctx, model.ListSubscriptionsRequest{SubscriptionFilter: req})
+	if err != nil {
+		return zero, err
+	}
+
+	var totalCost int64
+	for i := range subs {
+		fromDate := req.FromDate
+		toDate := req.ToDate
+		if subs[i].StartDate.After(fromDate.Time) {
+			fromDate = subs[i].StartDate
+		}
+		if subs[i].EndDate.Before(toDate.Time) {
+			toDate = subs[i].EndDate
+		}
+		months := toDate.Sub(fromDate) + 1
+		totalCost += int64(months) * subs[i].Price
+	}
+
+	return model.TotalCostResponse{
+		TotalCost: totalCost,
+	}, nil
 }
 
 var _ api.Service = &Service{}
