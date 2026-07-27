@@ -116,7 +116,7 @@ check-swag: ## install swag if need
 check-stringer: ## install stringer if need
 	@which stringer 2>/dev/null || go install golang.org/x/tools/cmd/stringer@v0.46.0
 
-check-tools: check-goose check-swag check-stringer
+check-tools: check-goose check-swag check-stringer ## check all tools
 
 
 # Находим все поддиректории в cmd, которые потенциально могут быть бинарниками
