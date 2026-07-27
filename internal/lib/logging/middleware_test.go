@@ -128,7 +128,7 @@ func TestHTTPLogging(t *testing.T) {
 		h := &logHandlerMock{}
 		log := slog.New(h)
 
-		failingWriter := &failingResponseWriter{}
+		failingWriter := &failingResponseWriter{httptest.NewRecorder()}
 
 		handler := HTTPLogging(log, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			w.WriteHeader(http.StatusOK)
@@ -219,7 +219,7 @@ func keyOrMissing(m map[string]any, key string) string {
 
 // failingResponseWriter — мок, который возвращает ошибку при Write
 type failingResponseWriter struct {
-	http.ResponseWriter
+	*httptest.ResponseRecorder
 }
 
 func (f *failingResponseWriter) WriteHeader(status int) {

@@ -8,6 +8,7 @@ import (
 	"math/rand/v2"
 	"net/http"
 	"runtime/debug"
+	"strconv"
 	"time"
 )
 
@@ -37,6 +38,7 @@ func HTTPLogging(log *slog.Logger, h http.Handler) http.Handler {
 
 		// Генерируем уникальный ID для запроса и добавляем в логгер
 		log := log.With("rid", reqInfo.ID)
+		w.Header().Set("X-Request-ID", strconv.FormatUint(reqInfo.ID, 10))
 
 		// Заменяем ResponseWriter на наш с хуком для логирования
 		si := &statusInterceptor{
