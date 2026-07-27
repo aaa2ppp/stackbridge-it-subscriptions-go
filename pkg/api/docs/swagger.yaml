@@ -1,12 +1,21 @@
 basePath: /api
 definitions:
+  api.ConflictResponse:
+    properties:
+      current:
+        $ref: '#/definitions/model.Subscription'
+      error:
+        type: string
+    type: object
   api.CreateSubscriptionRequest:
     properties:
       end_date:
+        default: 12-9999
         example: 12-2025
         type: string
       price:
         default: 0
+        example: 400
         minimum: 0
         type: integer
       service_name:
@@ -30,7 +39,8 @@ definitions:
         example: 12-2025
         type: string
       price:
-        minimum: 400
+        example: 100
+        minimum: 0
         type: integer
       service_name:
         example: Yandex Plus
@@ -47,6 +57,10 @@ definitions:
     properties:
       created:
         example: "2025-07-01T14:38:00.000Z"
+        format: date-time
+        type: string
+      deleted:
+        example: "2025-12-01T14:38:00.000Z"
         format: date-time
         type: string
       end_date:
@@ -90,12 +104,34 @@ paths:
         minimum: 0
         name: after_id
         type: integer
-      - default: 1
+      - default: 1000
         description: вернуть не более limit записей
         in: query
         minimum: 1
         name: limit
         type: integer
+      - description: User ID
+        format: uuid
+        in: query
+        name: user_id
+        type: string
+        x-example: 60601fee-2bf1-4721-ae6f-7636e79a0cba
+      - description: Service Name
+        in: query
+        minLength: 1
+        name: service_name
+        type: string
+        x-example: Yandex Plus
+      - default: 01-0001
+        description: From Date
+        in: query
+        name: from_date
+        type: string
+      - default: 12-9999
+        description: To Date
+        in: query
+        name: to_date
+        type: string
       produces:
       - application/json
       responses:
@@ -107,14 +143,15 @@ paths:
             type: array
         "400":
           description: Bad Request
-        "409":
-          description: Conflict
       summary: Получить список подписок
       tags:
       - subscriptions
     post:
       consumes:
       - application/json
+      description: |-
+        end_date - опциональное поле. Если не указано или передано как null,
+        подписка считается бессрочной (внутренне используется 12-9999)
       parameters:
       - description: CreateSubscriptionRequest
         in: body
@@ -131,15 +168,13 @@ paths:
             $ref: '#/definitions/model.Subscription'
         "400":
           description: Bad Request
-        "409":
-          description: Conflict
       summary: Создать подписку
       tags:
       - subscriptions
   /subscriptions/{id}:
     delete:
       description: Идемпотентен. Успех говорит, что подписка или была удалена или
-        отсутсвует.
+        отсутствует.
       parameters:
       - description: Subscription ID
         in: path
@@ -178,8 +213,6 @@ paths:
           description: Bad Request
         "404":
           description: Not Found
-        "409":
-          description: Conflict
       summary: Получить подписку
       tags:
       - subscriptions
@@ -214,7 +247,7 @@ paths:
         "409":
           description: Conflict
           schema:
-            $ref: '#/definitions/model.Subscription'
+            $ref: '#/definitions/api.ConflictResponse'
       summary: Обновить подписку
       tags:
       - subscriptions
@@ -225,7 +258,6 @@ paths:
         format: uuid
         in: query
         name: user_id
-        required: true
         type: string
         x-example: 60601fee-2bf1-4721-ae6f-7636e79a0cba
       - description: Service Name
@@ -235,17 +267,15 @@ paths:
         type: string
         x-example: Yandex Plus
       - description: From Date
-        format: date
         in: query
         name: from_date
         type: string
-        x-example: "2025-07-04"
+        x-example: 07-2025
       - description: To Date
-        format: date
         in: query
         name: to_date
         type: string
-        x-example: "2025-08-25"
+        x-example: 08-2025
       produces:
       - application/json
       responses:

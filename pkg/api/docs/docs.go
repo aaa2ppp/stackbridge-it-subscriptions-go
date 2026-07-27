@@ -39,9 +39,39 @@ const docTemplate = `{
                     {
                         "minimum": 1,
                         "type": "integer",
-                        "default": 1,
+                        "default": 1000,
                         "description": "вернуть не более limit записей",
                         "name": "limit",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "format": "uuid",
+                        "x-example": "60601fee-2bf1-4721-ae6f-7636e79a0cba",
+                        "description": "User ID",
+                        "name": "user_id",
+                        "in": "query"
+                    },
+                    {
+                        "minLength": 1,
+                        "type": "string",
+                        "x-example": "Yandex Plus",
+                        "description": "Service Name",
+                        "name": "service_name",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "default": "01-0001",
+                        "description": "From Date",
+                        "name": "from_date",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "default": "12-9999",
+                        "description": "To Date",
+                        "name": "to_date",
                         "in": "query"
                     }
                 ],
@@ -57,13 +87,11 @@ const docTemplate = `{
                     },
                     "400": {
                         "description": "Bad Request"
-                    },
-                    "409": {
-                        "description": "Conflict"
                     }
                 }
             },
             "post": {
+                "description": "end_date - опциональное поле. Если не указано или передано как null,\nподписка считается бессрочной (внутренне используется 12-9999)",
                 "consumes": [
                     "application/json"
                 ],
@@ -94,9 +122,6 @@ const docTemplate = `{
                     },
                     "400": {
                         "description": "Bad Request"
-                    },
-                    "409": {
-                        "description": "Conflict"
                     }
                 }
             }
@@ -117,8 +142,7 @@ const docTemplate = `{
                         "x-example": "60601fee-2bf1-4721-ae6f-7636e79a0cba",
                         "description": "User ID",
                         "name": "user_id",
-                        "in": "query",
-                        "required": true
+                        "in": "query"
                     },
                     {
                         "minLength": 1,
@@ -130,16 +154,14 @@ const docTemplate = `{
                     },
                     {
                         "type": "string",
-                        "format": "date",
-                        "x-example": "2025-07-04",
+                        "x-example": "07-2025",
                         "description": "From Date",
                         "name": "from_date",
                         "in": "query"
                     },
                     {
                         "type": "string",
-                        "format": "date",
-                        "x-example": "2025-08-25",
+                        "x-example": "08-2025",
                         "description": "To Date",
                         "name": "to_date",
                         "in": "query"
@@ -190,14 +212,11 @@ const docTemplate = `{
                     },
                     "404": {
                         "description": "Not Found"
-                    },
-                    "409": {
-                        "description": "Conflict"
                     }
                 }
             },
             "delete": {
-                "description": "Идемпотентен. Успех говорит, что подписка или была удалена или отсутсвует.",
+                "description": "Идемпотентен. Успех говорит, что подписка или была удалена или отсутствует.",
                 "produces": [
                     "application/json"
                 ],
@@ -272,7 +291,7 @@ const docTemplate = `{
                     "409": {
                         "description": "Conflict",
                         "schema": {
-                            "$ref": "#/definitions/model.Subscription"
+                            "$ref": "#/definitions/api.ConflictResponse"
                         }
                     }
                 }
@@ -280,6 +299,17 @@ const docTemplate = `{
         }
     },
     "definitions": {
+        "api.ConflictResponse": {
+            "type": "object",
+            "properties": {
+                "current": {
+                    "$ref": "#/definitions/model.Subscription"
+                },
+                "error": {
+                    "type": "string"
+                }
+            }
+        },
         "api.CreateSubscriptionRequest": {
             "type": "object",
             "required": [
@@ -290,12 +320,14 @@ const docTemplate = `{
             "properties": {
                 "end_date": {
                     "type": "string",
+                    "default": "12-9999",
                     "example": "12-2025"
                 },
                 "price": {
                     "type": "integer",
                     "default": 0,
-                    "minimum": 0
+                    "minimum": 0,
+                    "example": 400
                 },
                 "service_name": {
                     "type": "string",
@@ -321,7 +353,8 @@ const docTemplate = `{
                 },
                 "price": {
                     "type": "integer",
-                    "minimum": 400
+                    "minimum": 0,
+                    "example": 100
                 },
                 "service_name": {
                     "type": "string",
@@ -345,6 +378,11 @@ const docTemplate = `{
                     "type": "string",
                     "format": "date-time",
                     "example": "2025-07-01T14:38:00.000Z"
+                },
+                "deleted": {
+                    "type": "string",
+                    "format": "date-time",
+                    "example": "2025-12-01T14:38:00.000Z"
                 },
                 "end_date": {
                     "type": "string",

@@ -2,10 +2,12 @@ package api
 
 import (
 	"context"
+	"database/sql"
 	"errors"
 	"fmt"
 	"net/http"
 	"net/url"
+	"strconv"
 	"strings"
 	"time"
 
@@ -20,7 +22,7 @@ type Service interface {
 	Get(ctx context.Context, id int64) (model.Subscription, error)
 	Update(ctx context.Context, req model.UpdateSubscriptionRequest) (model.Subscription, error)
 	Delete(ctx context.Context, id int64) error
-	GetTotalCost(ctx context.Context, req model.TotalCostRequest) (model.TotalCostResponse, error)
+	GetTotalCost(ctx context.Context, req model.SubscriptionFilter) (model.TotalCostResponse, error)
 }
 
 func New(svc Service) *http.ServeMux {
@@ -38,20 +40,22 @@ func New(svc Service) *http.ServeMux {
 
 // CreateSubscription godoc
 //
-//	@tags		subscriptions
-//	@router		/subscriptions [post]
-//	@summary	Создать подписку
-//	@accept		json
-//	@produce	json
-//	@param		req	body		CreateSubscriptionRequest	true	"CreateSubscriptionRequest"
-//	@success	201	{object}	model.Subscription
-//	@failure	400
-//	@failure	409
+//	@tags			subscriptions
+//	@router			/subscriptions [post]
+//	@summary		Создать подписку
+//	@description	end_date - опциональное поле. Если не указано или передано как null,
+//	@description	подписка считается бессрочной (внутренне используется 12-9999)
+//	@accept			json
+//	@produce		json
+//	@param			req	body		CreateSubscriptionRequest	true	"CreateSubscriptionRequest"
+//	@success		201	{object}	model.Subscription
+//	@failure		400
 func CreateSubscription(svc Service) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		h := newHelper(w, r, "CreateSubscription")
 
 		var req CreateSubscriptionRequest
+		req.EndDate = MonthYearInfinity
 		if err := h.decodeRequestBody(&req); err != nil {
 			h.writeError(err)
 			return
@@ -73,12 +77,14 @@ func CreateSubscription(svc Service) http.HandlerFunc {
 	}
 }
 
+var MonthYearInfinity = model.MonthYear{Time: time.Date(9999, 12, 1, 0, 0, 0, 0, time.UTC)} // 12-9999
+
 type CreateSubscriptionRequest struct {
-	ServiceName string                          `json:"service_name" validate:"required" swaggertype:"string" minlength:"1" example:"Yandex Plus"`
-	Price       int64                           `json:"price" swaggertype:"integer" minimum:"0" default:"0"`
-	UserID      uuid.UUID                       `json:"user_id" validate:"required" swaggertype:"string" format:"uuid" example:"60601fee-2bf1-4721-ae6f-7636e79a0cba"`
-	StartDate   model.MonthYear                 `json:"start_date" validate:"required" swaggertype:"string" example:"07-2025"`
-	EndDate     model.Nullable[model.MonthYear] `json:"end_date" swaggertype:"string" example:"12-2025"`
+	ServiceName string          `json:"service_name" validate:"required" swaggertype:"string" minlength:"1" example:"Yandex Plus"`
+	Price       int64           `json:"price" swaggertype:"integer" minimum:"0" default:"0" example:"400"`
+	UserID      uuid.UUID       `json:"user_id" validate:"required" swaggertype:"string" format:"uuid" example:"60601fee-2bf1-4721-ae6f-7636e79a0cba"`
+	StartDate   model.MonthYear `json:"start_date" validate:"required" swaggertype:"string" example:"07-2025"`
+	EndDate     model.MonthYear `json:"end_date" swaggertype:"string" example:"12-2025" default:"12-9999"`
 }
 
 func (req *CreateSubscriptionRequest) Validate() error {
@@ -101,48 +107,44 @@ func (req *CreateSubscriptionRequest) Validate() error {
 		errs = append(errs, errors.New("start_date cannot be zero"))
 	}
 
-	if req.EndDate.Valid && req.EndDate.Value.Before(req.StartDate.Time) {
+	if req.EndDate.IsZero() {
+		errs = append(errs, errors.New("end_date cannot be zero"))
+	}
+
+	if req.EndDate.Before(req.StartDate.Time) {
 		errs = append(errs, errors.New("end_date cannot be before start_date"))
 	}
 
 	return errors.Join(errs...)
 }
 
+const DefaultLimit = 1000
+
 // ListSubscriptions godoc
 //
 //	@tags		subscriptions
 //	@router		/subscriptions [get]
 //	@summary	Получить список подписок
-//	@param		after_id	query	integer	false	"вернуть записи следующие за after_id"	default(0)	minimum(0)
-//	@param		limit		query	integer	false	"вернуть не более limit записей"		default(1)	minimum(1)
+//	@param		after_id		query	integer	false	"вернуть записи следующие за after_id"	default(0)		minimum(0)
+//	@param		limit			query	integer	false	"вернуть не более limit записей"		default(1000)	minimum(1)
+//	@param		user_id			query	string	false	"User ID"								format(uuid)	extensions(x-example=60601fee-2bf1-4721-ae6f-7636e79a0cba)
+//	@param		service_name	query	string	false	"Service Name"							minlength(1)	extensions(x-example=Yandex Plus)
+//	@param		from_date		query	string	false	"From Date"								default(01-0001)
+//	@param		to_date			query	string	false	"To Date"								default(12-9999)
 //	@produce	json
 //	@success	200	{array}	model.Subscription
 //	@failure	400
-//	@failure	409
 func ListSubscriptions(svc Service) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		h := newHelper(w, r, "ListSubscriptions")
-		q := h.query()
 
-		afterID := q.Int("after_id", false, 0)
-		limit := q.Int("limit", false, 1)
-
-		if err := q.Err(); err != nil {
-			h.writeError(err)
+		req, err := parseListSubscriptionsRequest(r.URL.Query())
+		if err != nil {
+			h.writeHTTPError(&httpError{"bad query: " + err.Error(), http.StatusBadRequest})
 			return
 		}
 
-		if afterID < 0 {
-			h.writeHTTPError(&httpError{"after_id must be >=0", http.StatusBadRequest})
-		}
-		if limit <= 0 {
-			h.writeHTTPError(&httpError{"limit must be >0", http.StatusBadRequest})
-		}
-
-		resp, err := svc.List(h.ctx(), model.ListSubscriptionsRequest{
-			AfterID: afterID,
-			Limit:   limit,
-		})
+		resp, err := svc.List(h.ctx(), req)
 		if err != nil {
 			h.writeError(err)
 			return
@@ -150,6 +152,43 @@ func ListSubscriptions(svc Service) http.HandlerFunc {
 
 		h.writeResponse(200, resp)
 	}
+}
+
+func parseListSubscriptionsRequest(q url.Values) (model.ListSubscriptionsRequest, error) {
+	var errs []error
+
+	afterID := int64(0)
+	if q.Has("after_id") {
+		s := q.Get("after_id")
+		v, err := strconv.ParseInt(s, 10, 64)
+		if err != nil || v < 0 {
+			errs = append(errs, errors.New("after_id must be integer >= 0"))
+		} else {
+			afterID = v
+		}
+	}
+
+	limit := int64(DefaultLimit)
+	if q.Has("limit") {
+		s := q.Get("limit")
+		v, err := strconv.ParseInt(s, 10, 64)
+		if err != nil || v <= 0 {
+			errs = append(errs, errors.New("limit must be integer > 0"))
+		} else {
+			limit = v
+		}
+	}
+
+	filter, err := parseSubscriptionFilter(q)
+	if err != nil {
+		errs = append(errs, err)
+	}
+
+	return model.ListSubscriptionsRequest{
+		AfterID:            afterID,
+		Limit:              limit,
+		SubscriptionFilter: filter,
+	}, errors.Join(errs...)
 }
 
 // GetSubscription godoc
@@ -162,7 +201,6 @@ func ListSubscriptions(svc Service) http.HandlerFunc {
 //	@success	200	{object}	model.Subscription
 //	@failure	400
 //	@failure	404
-//	@failure	409
 func GetSubscription(svc Service) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		h := newHelper(w, r, "GetSubscription")
@@ -195,7 +233,7 @@ func GetSubscription(svc Service) http.HandlerFunc {
 //	@success	200	{object}	model.Subscription
 //	@failure	400
 //	@failure	404
-//	@failure	409	{object}	model.Subscription
+//	@failure	409	{object}	ConflictResponse
 func UpdateSubscription(svc Service) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		h := newHelper(w, r, "UpdateSubscription")
@@ -218,8 +256,16 @@ func UpdateSubscription(svc Service) http.HandlerFunc {
 			Price:       req.Price,
 			StartDate:   req.StartDate,
 			EndDate:     req.EndDate,
+			Updated:     req.Updated,
 		})
 		if err != nil {
+			if errors.Is(err, model.ErrConflict) {
+				h.writeResponse(http.StatusConflict, ConflictResponse{
+					Current: resp,
+					Error:   err.Error(),
+				})
+				return
+			}
 			h.writeError(err)
 			return
 		}
@@ -230,21 +276,26 @@ func UpdateSubscription(svc Service) http.HandlerFunc {
 
 type UpdateSubscriptionRequest struct {
 	ServiceName model.Nullable[string]          `json:"service_name,omitzero" swaggertype:"string" minlength:"1" example:"Yandex Plus"`
-	Price       model.Nullable[int64]           `json:"price,omitzero" swaggertype:"integer" minimum:"400"`
+	Price       model.Nullable[int64]           `json:"price,omitzero" swaggertype:"integer" minimum:"0" example:"100"`
 	StartDate   model.Nullable[model.MonthYear] `json:"start_date,omitzero" swaggertype:"string" example:"07-2025"`
 	EndDate     model.Nullable[model.MonthYear] `json:"end_date,omitzero" swaggertype:"string" example:"12-2025"`
 	Updated     time.Time                       `json:"updated,omitzero" swaggertype:"string" format:"date-time" example:"2025-07-01T14:38:00.000Z"`
 }
 
+type ConflictResponse struct {
+	Current model.Subscription `json:"current,omitempty"`
+	Error   string             `json:"error,omitempty"`
+}
+
 func (req *UpdateSubscriptionRequest) Validate() error {
 	var errs []error
 
-	req.ServiceName.Value = strings.TrimSpace(req.ServiceName.Value)
-	if req.ServiceName.Defined && (!req.ServiceName.Valid || req.ServiceName.Value == "") {
+	req.ServiceName.V = strings.TrimSpace(req.ServiceName.V)
+	if req.ServiceName.Defined && (!req.ServiceName.Valid || req.ServiceName.V == "") {
 		errs = append(errs, errors.New("service_name cannot be empty"))
 	}
 
-	if req.Price.Defined && (!req.Price.Valid || req.Price.Value < 0) {
+	if req.Price.Defined && (!req.Price.Valid || req.Price.V < 0) {
 		errs = append(errs, errors.New("price must be integer >=0"))
 	}
 
@@ -252,7 +303,12 @@ func (req *UpdateSubscriptionRequest) Validate() error {
 		errs = append(errs, errors.New("start_date cannot be null"))
 	}
 
-	if req.StartDate.Valid && req.EndDate.Valid && req.EndDate.Value.Before(req.StartDate.Value.Time) {
+	if req.EndDate.Defined && !req.EndDate.Valid {
+		req.EndDate.V = MonthYearInfinity
+		req.EndDate.Valid = true
+	}
+
+	if req.StartDate.Defined && req.EndDate.Defined && req.EndDate.V.Before(req.StartDate.V.Time) {
 		errs = append(errs, errors.New("end_date cannot be before start_date"))
 	}
 
@@ -264,7 +320,7 @@ func (req *UpdateSubscriptionRequest) Validate() error {
 //	@tags			subscriptions
 //	@router			/subscriptions/{id} [delete]
 //	@summary		Удалить подписку
-//	@description	Идемпотентен. Успех говорит, что подписка или была удалена или отсутсвует.
+//	@description	Идемпотентен. Успех говорит, что подписка или была удалена или отсутствует.
 //	@param			id	path	integer	true	"Subscription ID"	minimum(1)	extensions(x-example=42)
 //	@produce		json
 //	@success		204
@@ -294,17 +350,17 @@ func DeleteSubscription(svc Service) http.HandlerFunc {
 //	@router		/subscriptions/total [get]
 //	@summary	Подсчет суммарной стоимости подписок
 //	@produce	json
-//	@param		user_id			query		string	true	"User ID"		format(uuid)	extensions(x-example=60601fee-2bf1-4721-ae6f-7636e79a0cba)
+//	@param		user_id			query		string	false	"User ID"		format(uuid)	extensions(x-example=60601fee-2bf1-4721-ae6f-7636e79a0cba)
 //	@param		service_name	query		string	false	"Service Name"	minlength(1)	extensions(x-example=Yandex Plus)
-//	@param		from_date		query		string	false	"From Date"		format(date)	extensions(x-example=2025-07-04)
-//	@param		to_date			query		string	false	"To Date"		format(date)	extensions(x-example=2025-08-25)
+//	@param		from_date		query		string	false	"From Date"		extensions(x-example=07-2025)
+//	@param		to_date			query		string	false	"To Date"		extensions(x-example=08-2025)
 //	@success	200				{object}	model.TotalCostResponse
 //	@failure	400
 func GetTotalCost(svc Service) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		h := newHelper(w, r, "GetTotalCost")
 
-		req, err := parseTotalCostRequest(r.URL.Query())
+		req, err := parseSubscriptionFilter(r.URL.Query())
 		if err != nil {
 			h.writeHTTPError(&httpError{err.Error(), http.StatusBadRequest})
 			return
@@ -320,75 +376,58 @@ func GetTotalCost(svc Service) http.HandlerFunc {
 	}
 }
 
-func parseTotalCostRequest(q url.Values) (model.TotalCostRequest, error) {
-	var req model.TotalCostRequest
+func parseSubscriptionFilter(q url.Values) (model.SubscriptionFilter, error) {
+	var req model.SubscriptionFilter
 	var errs []error
 
-	for range 1 {
-		if !q.Has("user_id") {
-			errs = append(errs, errors.New("user_id: is required"))
-			break
-		}
+	if q.Has("user_id") {
 		s := q.Get("user_id")
 		v, err := uuid.Parse(s)
 		if err != nil {
 			errs = append(errs, fmt.Errorf("user_id: %v", err))
-			break
+		} else {
+			req.UserID = model.Nullable[uuid.UUID]{
+				Null:    sql.Null[uuid.UUID]{V: v, Valid: true},
+				Defined: true,
+			}
 		}
-		req.UserID = v
 	}
 
-	for range 1 {
-		if !q.Has("service_name") {
-			break
-		}
+	if q.Has("service_name") {
 		s := q.Get("service_name")
 		if s == "" {
 			errs = append(errs, errors.New("service_name cannot be empty"))
-			break
-		}
-		req.ServiceName = model.Nullable[string]{
-			Defined: true,
-			Valid:   true,
-			Value:   s,
+		} else {
+			req.ServiceName = model.Nullable[string]{
+				Null:    sql.Null[string]{V: s, Valid: true},
+				Defined: true,
+			}
 		}
 	}
 
-	for range 1 {
-		if !q.Has("from_date") {
-			break
-		}
+	if q.Has("from_date") {
 		s := q.Get("from_date")
-		v, err := time.Parse(model.DateLayout, s)
+		v, err := time.Parse(model.MonthYearLayout, s)
 		if err != nil {
 			errs = append(errs, fmt.Errorf("from_date: %v", err))
-			break
-		}
-		req.FromDate = model.Nullable[model.Date]{
-			Defined: true,
-			Valid:   true,
-			Value:   model.Date{Time: v},
+		} else {
+			req.FromDate = model.MonthYear{Time: v}
 		}
 	}
 
-	for range 1 {
-		if !q.Has("to_date") {
-			break
-		}
+	if !q.Has("to_date") {
+		req.ToDate = MonthYearInfinity
+	} else {
 		s := q.Get("to_date")
-		v, err := time.Parse(model.DateLayout, s)
+		v, err := time.Parse(model.MonthYearLayout, s)
 		if err != nil {
 			errs = append(errs, fmt.Errorf("to_date: %v", err))
-			break
-		}
-		req.ToDate = model.Nullable[model.Date]{
-			Defined: true,
-			Valid:   true,
-			Value:   model.Date{Time: v},
+		} else {
+			req.ToDate = model.MonthYear{Time: v}
 		}
 	}
 
-	if req.FromDate.Valid && req.ToDate.Valid && req.ToDate.Value.Before(req.FromDate.Value.Time) {
+	if req.ToDate.Before(req.FromDate.Time) {
 		errs = append(errs, errors.New("to_date cannot be before from_date"))
 	}
 
