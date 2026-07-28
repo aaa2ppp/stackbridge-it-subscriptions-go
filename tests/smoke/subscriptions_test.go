@@ -98,15 +98,15 @@ func TestSmoke(t *testing.T) {
 
 	client := &http.Client{Timeout: 5 * time.Second}
 
-	userID := uuid.New()
+	userID := [2]uuid.UUID{uuid.New(), uuid.New()}
 
 	var created model.Subscription
 
 	if !t.Run("Create", func(t *testing.T) {
 		createBody := map[string]any{
-			"service_name": "Test Service",
+			"service_name": "Service0",
 			"price":        100,
-			"user_id":      userID.String(),
+			"user_id":      userID[0],
 			"start_date":   "07-2025",
 		}
 		b, _ := json.Marshal(createBody)
@@ -146,7 +146,6 @@ func TestSmoke(t *testing.T) {
 			"updated": created.Updated,
 		}
 		b, _ := json.Marshal(updateBody)
-		t.Logf("%s", b)
 
 		httpReq, err := http.NewRequest("PATCH", fmt.Sprintf("%s/subscriptions/%d", server.URL, created.ID), bytes.NewReader(b))
 		httpReq.Header.Set("content-type", "application/json")
@@ -164,8 +163,45 @@ func TestSmoke(t *testing.T) {
 		return
 	}
 
+	if !t.Run("Create2", func(t *testing.T) {
+		createBody := map[string]any{
+			"service_name": "Service1",
+			"price":        100,
+			"user_id":      userID[1],
+			"start_date":   "07-2025",
+		}
+		b, _ := json.Marshal(createBody)
+
+		resp, err := client.Post(server.URL+"/subscriptions", "application/json", bytes.NewReader(b))
+		be.Err(t, err, nil)
+		defer resp.Body.Close()
+
+		be.Equal(t, resp.StatusCode, 201)
+		json.NewDecoder(resp.Body).Decode(&created)
+
+		be.True(t, created.ID > 0)
+		be.Equal(t, created.Price, 100)
+		be.Equal(t, created.StartDate, model.MonthYear{Time: time.Date(2025, 7, 1, 0, 0, 0, 0, time.UTC)})
+		be.Equal(t, created.EndDate, api.MonthYearInfinity) // бессрочная
+	}) {
+		return
+	}
+
 	if !t.Run("Total cost", func(t *testing.T) {
-		httpResp, err := client.Get(fmt.Sprintf("%s/subscriptions/total?from_data=06-2025&to_date=09-2025", server.URL))
+		httpResp, err := client.Get(fmt.Sprintf("%s/subscriptions/total?from_date=08-2025&to_date=10-2025", server.URL))
+		be.Err(t, err, nil)
+		defer httpResp.Body.Close()
+
+		be.Equal(t, httpResp.StatusCode, 200)
+		var resp model.TotalCostResponse
+		json.NewDecoder(httpResp.Body).Decode(&resp)
+		be.Equal(t, resp.TotalCost, 450+300)
+	}) {
+		return
+	}
+
+	if !t.Run("Total cost user0", func(t *testing.T) {
+		httpResp, err := client.Get(fmt.Sprintf("%s/subscriptions/total?from_date=06-2025&to_date=09-2025&user_id=%v", server.URL, userID[0]))
 		be.Err(t, err, nil)
 		defer httpResp.Body.Close()
 
@@ -173,6 +209,19 @@ func TestSmoke(t *testing.T) {
 		var resp model.TotalCostResponse
 		json.NewDecoder(httpResp.Body).Decode(&resp)
 		be.Equal(t, resp.TotalCost, 450)
+	}) {
+		return
+	}
+
+	if !t.Run("Total cost service1", func(t *testing.T) {
+		httpResp, err := client.Get(fmt.Sprintf("%s/subscriptions/total?from_date=06-2025&to_date=09-2025&service_name=Service1", server.URL))
+		be.Err(t, err, nil)
+		defer httpResp.Body.Close()
+
+		be.Equal(t, httpResp.StatusCode, 200)
+		var resp model.TotalCostResponse
+		json.NewDecoder(httpResp.Body).Decode(&resp)
+		be.Equal(t, resp.TotalCost, 300)
 	}) {
 		return
 	}
@@ -188,7 +237,7 @@ func TestSmoke(t *testing.T) {
 		return
 	}
 
-	if !t.Run("Check", func(t *testing.T) {
+	if !t.Run("Check what deleted", func(t *testing.T) {
 		resp, err := client.Get(fmt.Sprintf("%s/subscriptions/%d", server.URL, created.ID))
 		be.Err(t, err, nil)
 		defer resp.Body.Close()

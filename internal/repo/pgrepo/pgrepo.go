@@ -179,4 +179,45 @@ func (r *PGRepo) Delete(ctx context.Context, id int64) error {
 	return err
 }
 
+func (r *PGRepo) GetTotalCost(ctx context.Context, req model.SubscriptionFilter) (int64, error) {
+	const sql = `
+WITH filtered (price, actual_start, actual_end) AS NOT MATERIALIZED (
+	SELECT 
+		price,
+		GREATEST(start_date, $1::date),
+		LEAST(end_date, $2::date)
+	FROM subscription
+	WHERE start_date <= $2::date AND $1::date <= end_date %s
+),
+calculated_months (price, months) AS NOT MATERIALIZED (
+	SELECT 
+		price,
+		(EXTRACT(YEAR FROM actual_end)::int - EXTRACT(YEAR FROM actual_start))::int * 12 +
+		(EXTRACT(MONTH FROM actual_end)::int - EXTRACT(MONTH FROM actual_start))::int + 1
+	FROM filtered
+)
+SELECT COALESCE(SUM(months * price), 0) AS total_cost 
+FROM calculated_months;`
+
+	values := []any{req.FromDate, req.ToDate}
+	n := 3
+	var filters []string
+
+	if req.UserID.Valid {
+		filters = append(filters, fmt.Sprintf(" AND user_id = $%d", n))
+		values = append(values, req.UserID.V)
+		n++
+	}
+
+	if req.ServiceName.Valid {
+		filters = append(filters, fmt.Sprintf(" AND service_name = $%d", n))
+		values = append(values, req.ServiceName.V)
+		n++
+	}
+
+	var totalCost int64
+	err := r.db().QueryRow(ctx, fmt.Sprintf(sql, strings.Join(filters, "")), values...).Scan(&totalCost)
+	return totalCost, err
+}
+
 var _ service.Repository = &PGRepo{}

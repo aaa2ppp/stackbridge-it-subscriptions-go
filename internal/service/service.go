@@ -13,6 +13,7 @@ type Repository interface {
 	List(ctx context.Context, req model.ListSubscriptionsRequest) ([]model.Subscription, error)
 	Update(ctx context.Context, req model.Subscription) (model.Subscription, error)
 	Delete(ctx context.Context, id int64) error
+	GetTotalCost(ctx context.Context, req model.SubscriptionFilter) (int64, error)
 }
 
 type Service struct {
@@ -77,30 +78,8 @@ func (s *Service) Update(ctx context.Context, req model.UpdateSubscriptionReques
 
 // GetTotalCost implements [api.Service].
 func (s *Service) GetTotalCost(ctx context.Context, req model.SubscriptionFilter) (model.TotalCostResponse, error) {
-	var zero model.TotalCostResponse
-
-	subs, err := s.repo.List(ctx, model.ListSubscriptionsRequest{SubscriptionFilter: req})
-	if err != nil {
-		return zero, err
-	}
-
-	var totalCost int64
-	for i := range subs {
-		fromDate := req.FromDate
-		toDate := req.ToDate
-		if subs[i].StartDate.After(fromDate.Time) {
-			fromDate = subs[i].StartDate
-		}
-		if subs[i].EndDate.Before(toDate.Time) {
-			toDate = subs[i].EndDate
-		}
-		months := toDate.Sub(fromDate) + 1
-		totalCost += int64(months) * subs[i].Price
-	}
-
-	return model.TotalCostResponse{
-		TotalCost: totalCost,
-	}, nil
+	totalCost, err := s.repo.GetTotalCost(ctx, req)
+	return model.TotalCostResponse{TotalCost: totalCost}, err
 }
 
 var _ api.Service = &Service{}
