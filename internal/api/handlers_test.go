@@ -365,12 +365,14 @@ func TestHandlers(t *testing.T) {
 			contentType: "application/json",
 			body: `{
 				"price":    400,
-				"end_date": null
+				"end_date": null,
+				"updated":  "2025-01-01T00:00:00Z"
 			}`,
 			wantReq: model.UpdateSubscriptionRequest{
 				ID:      int64(42),
 				Price:   Nullable(int64(400), true, true),
 				EndDate: Nullable(api.MonthYearInfinity, true, true), // null -> 12-9999
+				Updated: time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC),
 			},
 			svc: mockService{
 				update: func(req model.UpdateSubscriptionRequest) (model.Subscription, error) {
@@ -381,6 +383,7 @@ func TestHandlers(t *testing.T) {
 						UserID:      uuid.MustParse("60601fee-2bf1-4721-ae6f-7636e79a0cba"),
 						StartDate:   MonthYear(7, 2025),
 						EndDate:     api.MonthYearInfinity,
+						Updated:     time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC),
 					}, nil
 				},
 			},
@@ -393,13 +396,30 @@ func TestHandlers(t *testing.T) {
 				"start_date":   "07-2025",
 				"end_date":     "12-9999",
 				"created":      "0001-01-01T00:00:00Z",
-				"updated":      "0001-01-01T00:00:00Z"
+				"updated":      "2025-01-01T00:00:00Z"
 			}`,
+		},
+		{
+			name:        "update missing updated",
+			query:       "PATCH /subscriptions/42",
+			contentType: "application/json",
+			body: `{
+				"price":    400,
+				"end_date": null
+			}`,
+			wantStatusCode: 400,
+		},
+		{
+			name:           "update no updates",
+			query:          "PATCH /subscriptions/42",
+			contentType:    "application/json",
+			body:           `{"updated":"2025-01-01T00:00:00Z"}`,
+			wantStatusCode: 400,
 		},
 		{
 			name:           "update bad id",
 			query:          "PATCH /subscriptions/forty-two",
-			body:           `{"price":400}`,
+			body:           `{"price":400,"updated":"2025-01-01T00:00:00Z"}`,
 			contentType:    "application/json",
 			wantStatusCode: 400,
 		},
@@ -418,7 +438,8 @@ func TestHandlers(t *testing.T) {
 				"service_name": "",
 				"price":        400,
 				"start_date":   "07-2025",
-				"end_date":     "12-2025"
+				"end_date":     "12-2025",
+				"updated":      "2025-01-01T00:00:00Z"
 			}`,
 			wantStatusCode: 400,
 		},
@@ -430,7 +451,8 @@ func TestHandlers(t *testing.T) {
 				"service_name": "Yandex Plus",
 				"price":        -1,
 				"start_date":   "07-2025",
-				"end_date":     "12-2025"
+				"end_date":     "12-2025",
+				"updated":      "2025-01-01T00:00:00Z"
 			}`,
 			wantStatusCode: 400,
 		},
@@ -442,7 +464,8 @@ func TestHandlers(t *testing.T) {
 				"service_name": "Yandex Plus",
 				"price":        400,
 				"start_date":   "12-2025",
-				"end_date":     "07-2025"
+				"end_date":     "07-2025",
+				"updated":      "2025-01-01T00:00:00Z"
 			}`,
 			svc:            mockService{},
 			wantStatusCode: 400,
@@ -455,7 +478,8 @@ func TestHandlers(t *testing.T) {
 				"service_name": "Yandex Plus",
 				"price":        400,
 				"start_date":   "07-2025",
-				"end_date":     "12-2025"
+				"end_date":     "12-2025",
+				"updated":      "2025-01-01T00:00:00Z"
 			}`,
 			wantReq: true,
 			svc: mockService{
@@ -468,7 +492,7 @@ func TestHandlers(t *testing.T) {
 		{
 			name:        "update not found",
 			query:       "PATCH /subscriptions/42",
-			body:        `{"price":400}`,
+			body:        `{"price":400,"updated":"2025-01-01T00:00:00Z"}`,
 			contentType: "application/json",
 			wantReq:     true,
 			svc: mockService{
@@ -481,7 +505,7 @@ func TestHandlers(t *testing.T) {
 		{
 			name:        "update conflict",
 			query:       "PATCH /subscriptions/42",
-			body:        `{"price":400}`,
+			body:        `{"price":400,"updated":"2025-01-01T00:00:00Z"}`,
 			contentType: "application/json",
 			wantReq:     true,
 			svc: mockService{

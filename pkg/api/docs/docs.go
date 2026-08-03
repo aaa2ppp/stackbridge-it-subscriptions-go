@@ -247,7 +247,7 @@ const docTemplate = `{
                 }
             },
             "patch": {
-                "description": "Обновляет только переданные поля. ` + "`" + `user_id` + "`" + ` не может быть изменен.",
+                "description": "Обновляет только переданные поля. ` + "`" + `user_id` + "`" + ` не может быть изменен.\nПоле ` + "`" + `updated` + "`" + ` обязательное, должно иметь значение из предыдущего GET-запроса.\nВ случае, если переданное значение ` + "`" + `updated` + "`" + ` не совпадает с текущим в БД, возвращается 409 (Conflict) с актуальной версией записи.",
                 "consumes": [
                     "application/json"
                 ],
@@ -349,6 +349,9 @@ const docTemplate = `{
         },
         "api.UpdateSubscriptionRequest": {
             "type": "object",
+            "required": [
+                "updated"
+            ],
             "properties": {
                 "end_date": {
                     "type": "string",

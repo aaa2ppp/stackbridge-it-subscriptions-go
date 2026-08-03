@@ -52,6 +52,8 @@ definitions:
         example: "2025-07-01T14:38:00.000Z"
         format: date-time
         type: string
+    required:
+    - updated
     type: object
   model.Subscription:
     properties:
@@ -219,7 +221,10 @@ paths:
     patch:
       consumes:
       - application/json
-      description: Обновляет только переданные поля. `user_id` не может быть изменен.
+      description: |-
+        Обновляет только переданные поля. `user_id` не может быть изменен.
+        Поле `updated` обязательное, должно иметь значение из предыдущего GET-запроса.
+        В случае, если переданное значение `updated` не совпадает с текущим в БД, возвращается 409 (Conflict) с актуальной версией записи.
       parameters:
       - description: Subscription ID
         in: path

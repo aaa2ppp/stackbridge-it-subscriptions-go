@@ -227,6 +227,8 @@ func GetSubscription(svc Service) http.HandlerFunc {
 //	@router			/subscriptions/{id} [patch]
 //	@summary		Обновить подписку
 //	@description	Обновляет только переданные поля. `user_id` не может быть изменен.
+//	@description	Поле `updated` обязательное, должно иметь значение из предыдущего GET-запроса.
+//	@description	В случае, если переданное значение `updated` не совпадает с текущим в БД, возвращается 409 (Conflict) с актуальной версией записи.
 //	@accept			json
 //	@produce		json
 //	@param			id	path		integer						true	"Subscription ID"	minimum(1)	extensions(x-example=42)
@@ -280,7 +282,7 @@ type UpdateSubscriptionRequest struct {
 	Price       model.Nullable[int64]           `json:"price,omitzero" swaggertype:"integer" minimum:"0" example:"100"`
 	StartDate   model.Nullable[model.MonthYear] `json:"start_date,omitzero" swaggertype:"string" example:"07-2025"`
 	EndDate     model.Nullable[model.MonthYear] `json:"end_date,omitzero" swaggertype:"string" example:"12-2025"`
-	Updated     time.Time                       `json:"updated,omitzero" swaggertype:"string" format:"date-time" example:"2025-07-01T14:38:00.000Z"`
+	Updated     time.Time                       `json:"updated" validate:"required" swaggertype:"string" format:"date-time" example:"2025-07-01T14:38:00.000Z"`
 }
 
 type ConflictResponse struct {
@@ -289,6 +291,12 @@ type ConflictResponse struct {
 }
 
 func (req *UpdateSubscriptionRequest) Validate() error {
+	zero := UpdateSubscriptionRequest{}
+	zero.Updated = req.Updated
+	if *req == zero {
+		return errors.New("there are no updates")
+	}
+
 	var errs []error
 
 	req.ServiceName.V = strings.TrimSpace(req.ServiceName.V)
@@ -311,6 +319,10 @@ func (req *UpdateSubscriptionRequest) Validate() error {
 
 	if req.StartDate.Defined && req.EndDate.Defined && req.EndDate.V.Before(req.StartDate.V.Time) {
 		errs = append(errs, errors.New("end_date cannot be before start_date"))
+	}
+
+	if req.Updated.IsZero() {
+		errs = append(errs, errors.New("updated is required"))
 	}
 
 	return errors.Join(errs...)
@@ -400,6 +412,7 @@ func parseSubscriptionFilter(q url.Values, defaultToDate model.MonthYear) (model
 
 	if q.Has("service_name") {
 		s := q.Get("service_name")
+		s = strings.TrimSpace(s)
 		if s == "" {
 			errs = append(errs, errors.New("service_name cannot be empty"))
 		} else {
