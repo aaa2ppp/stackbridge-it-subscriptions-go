@@ -7,7 +7,10 @@ import (
 	"encoding/json"
 )
 
-// Nullable позволяет различать отсутствие поля и значение null. Всегда используйте 'omitzero' в 'json' теге.
+// Nullable allows you to distinguish the absence of a field in the incoming JSON from the null value.
+// If the field is present in JSON, Defined = true. If the field is null or missing, Valid = false.
+// For data coming from the database, Defined = Valid always.
+// Use 'omitzero' in the 'json' tag for proper serialization.
 type Nullable[T any] struct {
 	sql.Null[T] `json:"-"`
 	Defined     bool `json:"-"`
@@ -24,6 +27,7 @@ func (n Nullable[T]) MarshalJSON() ([]byte, error) {
 // UnmarshalJSON implements [json.Unmarshaler].
 func (n *Nullable[T]) UnmarshalJSON(b []byte) error {
 	if bytes.Equal(b, []byte("null")) {
+		*n = Nullable[T]{}
 		n.Defined = true
 		return nil
 	}
@@ -37,6 +41,14 @@ func (n *Nullable[T]) UnmarshalJSON(b []byte) error {
 
 func (n Nullable[T]) IsZero() bool {
 	return !n.Defined
+}
+
+func (n *Nullable[T]) Scan(value any) error {
+	if err := n.Null.Scan(value); err != nil {
+		return err
+	}
+	n.Defined = n.Valid
+	return nil
 }
 
 var _ json.Unmarshaler = &Nullable[int]{}

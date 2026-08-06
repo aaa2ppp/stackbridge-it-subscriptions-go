@@ -6,7 +6,7 @@ import (
 	"database/sql/driver"
 	"encoding/json"
 	"fmt"
-	"strings"
+	"strconv"
 	"time"
 )
 
@@ -21,7 +21,10 @@ func (my *MonthYear) UnmarshalJSON(b []byte) error {
 		return nil
 	}
 
-	s := strings.Trim(string(b), "\"")
+	s, err := strconv.Unquote(string(b))
+	if err != nil {
+		return err
+	}
 
 	t, err := time.ParseInLocation(MonthYearLayout, s, time.UTC)
 	if err != nil {
