@@ -9,13 +9,7 @@ import (
 	"reflect"
 	"strconv"
 
-	"subscriptions/internal/lib/getval"
 	"subscriptions/internal/lib/logging"
-)
-
-const (
-	required = true
-	optional = false
 )
 
 const applicationJSON = "application/json"
@@ -26,7 +20,6 @@ type helper struct {
 	op   string
 	_ctx context.Context
 	_log *slog.Logger
-	_qry *getval.GetValue
 }
 
 func newHelper(w http.ResponseWriter, r *http.Request, op string) *helper {
@@ -102,15 +95,13 @@ type validator interface {
 	Validate() error
 }
 
-func (h *helper) writeResponse(statusCode int, resp any) error {
+func (h *helper) writeResponse(statusCode int, resp any) {
 	h.w.Header().Set("Content-Type", applicationJSON)
 	h.w.WriteHeader(statusCode)
 
 	if err := json.NewEncoder(h.w).Encode(resp); err != nil {
 		h.log().Error("write response", "error", err)
-		return err
 	}
-	return nil
 }
 
 func (h *helper) getIDFromPath() (int64, error) {
@@ -123,17 +114,4 @@ func (h *helper) getIDFromPath() (int64, error) {
 		return 0, &httpError{"id must be int >0", http.StatusBadRequest}
 	}
 	return id, nil
-}
-
-func (h *helper) query() *getval.GetValue {
-	if h._qry == nil {
-		q := h.r.URL.Query()
-		h._qry = getval.New(func(key string) (string, bool) {
-			if q.Has(key) {
-				return q.Get(key), true
-			}
-			return "", false
-		})
-	}
-	return h._qry
 }

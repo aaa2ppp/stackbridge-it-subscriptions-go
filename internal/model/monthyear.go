@@ -36,11 +36,11 @@ func (my *MonthYear) UnmarshalJSON(b []byte) error {
 }
 
 func (my MonthYear) MarshalJSON() ([]byte, error) {
-	return fmt.Appendf(nil, "%q", my.Time.Format(MonthYearLayout)), nil
+	return fmt.Appendf(nil, "%q", my.Format(MonthYearLayout)), nil
 }
 
 func (my MonthYear) Value() (driver.Value, error) {
-	return my.Time.Format("2006-01-02"), nil
+	return my.Format("2006-01-02"), nil
 }
 
 func (my *MonthYear) Scan(value any) error {

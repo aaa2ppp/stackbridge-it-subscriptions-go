@@ -55,7 +55,7 @@ all: help
 
 .PHONY: run docker-run
 
-run: generate test build db-up migrate-up ## run server (local)
+run: generate lint test build db-up migrate-up ## run server (local)
 	$(BIN_DIR)/server
 
 docker-run: docker-build docker-up ## run server in docker
@@ -116,7 +116,10 @@ check-swag: ## install swag if need
 check-stringer: ## install stringer if need
 	@which stringer 2>/dev/null || go install golang.org/x/tools/cmd/stringer@v0.46.0
 
-check-tools: check-goose check-swag check-stringer ## check all tools
+check-golangci-lint: ## install golangci-lint if need
+	@which golangci-lint 2>/dev/null || go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v2.12.2
+
+check-tools: check-goose check-swag check-stringer check-golangci-lint ## check all tools
 
 
 # Находим все поддиректории в cmd, которые потенциально могут быть бинарниками
@@ -143,6 +146,9 @@ go-generate:
 	go generate ./...
 
 generate: go-generate swag-generate ## generate all
+
+lint: ## run linters
+	golangci-lint run ./...
 
 test: ## run tests
 	go test ./internal/...

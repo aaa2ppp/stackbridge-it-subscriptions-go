@@ -60,7 +60,7 @@ func TestSmoke(t *testing.T) {
 		Started: true,
 	})
 	be.Err(t, err, nil)
-	defer postgresC.Terminate(ctx)
+	defer postgresC.Terminate(ctx) //nolint:errcheck
 
 	// Подключаемся
 	host, _ := postgresC.Host(ctx)
@@ -72,7 +72,7 @@ func TestSmoke(t *testing.T) {
 	sqlDB, err := sql.Open("postgres", dsn)
 	be.Err(t, err, nil)
 
-	goose.SetDialect("postgres")
+	be.Err(t, goose.SetDialect("postgres"), nil)
 	err = goose.DownTo(sqlDB, migrationsPath, 0)
 	be.Err(t, err, nil)
 	err = goose.Up(sqlDB, migrationsPath)
@@ -113,10 +113,10 @@ func TestSmoke(t *testing.T) {
 
 		resp, err := client.Post(server.URL+"/subscriptions", "application/json", bytes.NewReader(b))
 		be.Err(t, err, nil)
-		defer resp.Body.Close()
+		defer resp.Body.Close() //nolint:errcheck
 
 		be.Equal(t, resp.StatusCode, 201)
-		json.NewDecoder(resp.Body).Decode(&created)
+		be.Err(t, json.NewDecoder(resp.Body).Decode(&created), nil)
 
 		be.True(t, created.ID > 0)
 		be.Equal(t, created.Price, 100)
@@ -129,11 +129,11 @@ func TestSmoke(t *testing.T) {
 	if !t.Run("Get", func(t *testing.T) {
 		resp, err := client.Get(fmt.Sprintf("%s/subscriptions/%d", server.URL, created.ID))
 		be.Err(t, err, nil)
-		defer resp.Body.Close()
+		defer resp.Body.Close() //nolint:errcheck
 
 		be.Equal(t, resp.StatusCode, 200)
 		var sub model.Subscription
-		json.NewDecoder(resp.Body).Decode(&sub)
+		be.Err(t, json.NewDecoder(resp.Body).Decode(&sub), nil)
 
 		be.Equal(be.Diff(t), sub, created)
 	}) {
@@ -152,11 +152,11 @@ func TestSmoke(t *testing.T) {
 		be.Err(t, err, nil)
 		resp, err := client.Do(httpReq)
 		be.Err(t, err, nil)
-		defer resp.Body.Close()
+		defer resp.Body.Close() //nolint:errcheck
 
 		be.Equal(t, resp.StatusCode, 200)
 		var sub model.Subscription
-		json.NewDecoder(resp.Body).Decode(&sub)
+		be.Err(t, json.NewDecoder(resp.Body).Decode(&sub), nil)
 
 		be.Equal(t, sub.Price, 150)
 	}) {
@@ -174,10 +174,10 @@ func TestSmoke(t *testing.T) {
 
 		resp, err := client.Post(server.URL+"/subscriptions", "application/json", bytes.NewReader(b))
 		be.Err(t, err, nil)
-		defer resp.Body.Close()
+		defer resp.Body.Close() //nolint:errcheck
 
 		be.Equal(t, resp.StatusCode, 201)
-		json.NewDecoder(resp.Body).Decode(&created)
+		be.Err(t, json.NewDecoder(resp.Body).Decode(&created), nil)
 
 		be.True(t, created.ID > 0)
 		be.Equal(t, created.Price, 100)
@@ -190,11 +190,11 @@ func TestSmoke(t *testing.T) {
 	if !t.Run("Total cost", func(t *testing.T) {
 		httpResp, err := client.Get(fmt.Sprintf("%s/subscriptions/total?from_date=08-2025&to_date=10-2025", server.URL))
 		be.Err(t, err, nil)
-		defer httpResp.Body.Close()
+		defer httpResp.Body.Close() //nolint:errcheck
 
 		be.Equal(t, httpResp.StatusCode, 200)
 		var resp model.TotalCostResponse
-		json.NewDecoder(httpResp.Body).Decode(&resp)
+		be.Err(t, json.NewDecoder(httpResp.Body).Decode(&resp), nil)
 		be.Equal(t, resp.TotalCost, 450+300)
 	}) {
 		return
@@ -203,11 +203,11 @@ func TestSmoke(t *testing.T) {
 	if !t.Run("Total cost user0", func(t *testing.T) {
 		httpResp, err := client.Get(fmt.Sprintf("%s/subscriptions/total?from_date=06-2025&to_date=09-2025&user_id=%v", server.URL, userID[0]))
 		be.Err(t, err, nil)
-		defer httpResp.Body.Close()
+		defer httpResp.Body.Close() //nolint:errcheck
 
 		be.Equal(t, httpResp.StatusCode, 200)
 		var resp model.TotalCostResponse
-		json.NewDecoder(httpResp.Body).Decode(&resp)
+		be.Err(t, json.NewDecoder(httpResp.Body).Decode(&resp), nil)
 		be.Equal(t, resp.TotalCost, 450)
 	}) {
 		return
@@ -216,11 +216,11 @@ func TestSmoke(t *testing.T) {
 	if !t.Run("Total cost service1", func(t *testing.T) {
 		httpResp, err := client.Get(fmt.Sprintf("%s/subscriptions/total?from_date=06-2025&to_date=09-2025&service_name=Service1", server.URL))
 		be.Err(t, err, nil)
-		defer httpResp.Body.Close()
+		defer httpResp.Body.Close() //nolint:errcheck
 
 		be.Equal(t, httpResp.StatusCode, 200)
 		var resp model.TotalCostResponse
-		json.NewDecoder(httpResp.Body).Decode(&resp)
+		be.Err(t, json.NewDecoder(httpResp.Body).Decode(&resp), nil)
 		be.Equal(t, resp.TotalCost, 300)
 	}) {
 		return
@@ -231,7 +231,7 @@ func TestSmoke(t *testing.T) {
 		be.Err(t, err, nil)
 		httpResp, err := client.Do(httpReq)
 		be.Err(t, err, nil)
-		defer httpResp.Body.Close()
+		defer httpResp.Body.Close() //nolint:errcheck
 		be.Equal(t, httpResp.StatusCode, 204)
 	}) {
 		return
@@ -240,7 +240,7 @@ func TestSmoke(t *testing.T) {
 	if !t.Run("Check what deleted", func(t *testing.T) {
 		resp, err := client.Get(fmt.Sprintf("%s/subscriptions/%d", server.URL, created.ID))
 		be.Err(t, err, nil)
-		defer resp.Body.Close()
+		defer resp.Body.Close() //nolint:errcheck
 		be.Equal(t, resp.StatusCode, 404)
 	}) {
 		return

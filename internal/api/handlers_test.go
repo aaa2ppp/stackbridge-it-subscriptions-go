@@ -627,7 +627,7 @@ func TestHandlers(t *testing.T) {
 
 			httpResp, err := http.DefaultClient.Do(httpReq)
 			be.Err(t, err, nil)
-			defer httpResp.Body.Close()
+			defer httpResp.Body.Close() //nolint:errcheck
 
 			if wantReq, ok := tt.wantReq.(bool); ok {
 				be.Equal(t, (svc.gotReq != nil), wantReq)

@@ -65,7 +65,7 @@ func TestHTTPLogging(t *testing.T) {
 
 		handler := HTTPLogging(log, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			w.WriteHeader(http.StatusOK)
-			w.Write([]byte("OK"))
+			_, _ = w.Write([]byte("OK"))
 		}))
 
 		req := httptest.NewRequest("GET", "/api/data", nil)
@@ -132,7 +132,7 @@ func TestHTTPLogging(t *testing.T) {
 
 		handler := HTTPLogging(log, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			w.WriteHeader(http.StatusOK)
-			w.Write([]byte("OK")) // вернёт ошибку
+			_, _ = w.Write([]byte("OK")) // вернёт ошибку
 		}))
 
 		req := httptest.NewRequest("GET", "/api/data", nil)
@@ -181,7 +181,7 @@ func TestHTTPLogging(t *testing.T) {
 		log := slog.New(h)
 
 		handler := HTTPLogging(log, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			w.Write([]byte("OK")) // WriteHeader не вызван — status должен быть 200
+			_, _ = w.Write([]byte("OK")) // WriteHeader не вызван — status должен быть 200
 		}))
 
 		req := httptest.NewRequest("GET", "/api/data", nil)

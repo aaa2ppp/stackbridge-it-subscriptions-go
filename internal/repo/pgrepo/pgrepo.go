@@ -87,26 +87,22 @@ func (r *PGRepo) List(ctx context.Context, req model.ListSubscriptionsRequest) (
 	ORDER BY id %s;`
 
 	values := []any{req.AfterID, req.FromDate, req.ToDate}
-	n := 4
 	var filters []string
 	var limit string
 
 	if req.UserID.Valid {
-		filters = append(filters, fmt.Sprintf(" AND user_id = $%d", n))
 		values = append(values, req.UserID.V)
-		n++
+		filters = append(filters, fmt.Sprintf(" AND user_id = $%d", len(values)))
 	}
 
 	if req.ServiceName.Valid {
-		filters = append(filters, fmt.Sprintf(" AND service_name = $%d", n))
 		values = append(values, req.ServiceName.V)
-		n++
+		filters = append(filters, fmt.Sprintf(" AND service_name = $%d", len(values)))
 	}
 
 	if req.Limit > 0 {
-		limit = fmt.Sprintf("LIMIT $%d", n)
 		values = append(values, req.Limit)
-		n++
+		limit = fmt.Sprintf("LIMIT $%d", len(values))
 	}
 
 	rows, err := r.db().Query(ctx, fmt.Sprintf(sql, strings.Join(filters, ""), limit), values...)
@@ -200,19 +196,16 @@ SELECT COALESCE(SUM(months * price), 0) AS total_cost
 FROM calculated_months;`
 
 	values := []any{req.FromDate, req.ToDate}
-	n := 3
 	var filters []string
 
 	if req.UserID.Valid {
-		filters = append(filters, fmt.Sprintf(" AND user_id = $%d", n))
 		values = append(values, req.UserID.V)
-		n++
+		filters = append(filters, fmt.Sprintf(" AND user_id = $%d", len(values)))
 	}
 
 	if req.ServiceName.Valid {
-		filters = append(filters, fmt.Sprintf(" AND service_name = $%d", n))
 		values = append(values, req.ServiceName.V)
-		n++
+		filters = append(filters, fmt.Sprintf(" AND service_name = $%d", len(values)))
 	}
 
 	var totalCost int64
