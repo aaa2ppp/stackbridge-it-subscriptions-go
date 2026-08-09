@@ -1,0 +1,9 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: app-config
+data:
+  LOG_LEVEL: "DEBUG"
+  DB_NAME: "my_app_db"
+  DB_USER: "postgres"
+  DB_ADDR: "db:5432"
