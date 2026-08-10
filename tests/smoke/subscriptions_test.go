@@ -21,6 +21,7 @@ import (
 	"subscriptions/internal/service"
 
 	"github.com/aaa2ppp/be"
+	"github.com/aaa2ppp/be/tb"
 	"github.com/google/uuid"
 	"github.com/pressly/goose/v3"
 	"github.com/testcontainers/testcontainers-go"
@@ -135,7 +136,7 @@ func TestSmoke(t *testing.T) {
 		var sub model.Subscription
 		be.Err(t, json.NewDecoder(resp.Body).Decode(&sub), nil)
 
-		be.Equal(be.Diff(t), sub, created)
+		be.Equal(tb.Diff(t), sub, created)
 	}) {
 		return
 	}

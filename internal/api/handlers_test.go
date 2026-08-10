@@ -16,6 +16,7 @@ import (
 	"time"
 
 	"github.com/aaa2ppp/be"
+	"github.com/aaa2ppp/be/tb"
 	"github.com/google/uuid"
 )
 
@@ -632,7 +633,7 @@ func TestHandlers(t *testing.T) {
 			if wantReq, ok := tt.wantReq.(bool); ok {
 				be.Equal(t, (svc.gotReq != nil), wantReq)
 			} else {
-				be.Equal(be.Diff(t), svc.gotReq, tt.wantReq)
+				be.Equal(tb.Diff(t), svc.gotReq, tt.wantReq)
 			}
 
 			if !be.Equal(t, httpResp.StatusCode, tt.wantStatusCode) {
@@ -653,7 +654,7 @@ func TestHandlers(t *testing.T) {
 				err = json.NewDecoder(httpResp.Body).Decode(&gotResp)
 				be.Err(t, err, nil)
 
-				be.Equal(be.Diff(t), gotResp, wantResp)
+				be.Equal(tb.Diff(t), gotResp, wantResp)
 			}
 		})
 	}

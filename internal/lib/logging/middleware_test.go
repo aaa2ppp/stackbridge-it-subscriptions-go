@@ -10,6 +10,7 @@ import (
 	"testing"
 
 	"github.com/aaa2ppp/be"
+	"github.com/aaa2ppp/be/tb"
 )
 
 // logHandlerMock — накапливает записи лога
@@ -74,7 +75,7 @@ func TestHTTPLogging(t *testing.T) {
 
 		handler.ServeHTTP(w, req)
 
-		be.Equal(be.Require(t), len(h.records), 1)
+		be.Equal(tb.Require(t), len(h.records), 1)
 		r := h.records[0]
 
 		be.Equal(t, r.Message, "request")
@@ -106,13 +107,13 @@ func TestHTTPLogging(t *testing.T) {
 		handler.ServeHTTP(w, req)
 
 		// Первая запись — паника
-		be.True(be.Require(t), len(h.records) >= 1)
+		be.True(tb.Require(t), len(h.records) >= 1)
 		panicRecord := h.records[0]
 		be.Equal(t, panicRecord.Message, "*** panic recovered ***")
 		be.Equal(t, panicRecord.Level, slog.LevelError)
 
 		// Вторая запись — результат запроса
-		be.Equal(be.Require(t), len(h.records), 2)
+		be.Equal(tb.Require(t), len(h.records), 2)
 		resultRecord := h.records[1]
 		be.Equal(t, resultRecord.Message, "request")
 		be.Equal(t, resultRecord.Level, slog.LevelError)
@@ -140,7 +141,7 @@ func TestHTTPLogging(t *testing.T) {
 
 		handler.ServeHTTP(w, req)
 
-		be.Equal(be.Require(t), len(h.records), 1)
+		be.Equal(tb.Require(t), len(h.records), 1)
 		r := h.records[0]
 
 		be.Equal(t, r.Level, slog.LevelError)
@@ -165,13 +166,13 @@ func TestHTTPLogging(t *testing.T) {
 		handler.ServeHTTP(w, req)
 
 		// Первая запись — внутри обработчика
-		be.True(be.Require(t), len(h.records) >= 1)
+		be.True(tb.Require(t), len(h.records) >= 1)
 		inner := h.records[0]
 		be.Equal(t, inner.Message, "inside handler")
 		be.Equal(t, inner.Level, slog.LevelInfo)
 
 		// Вторая запись — результат запроса
-		be.Equal(be.Require(t), len(h.records), 2)
+		be.Equal(tb.Require(t), len(h.records), 2)
 		result := h.records[1]
 		be.Equal(t, result.Message, "request")
 	})
@@ -192,7 +193,7 @@ func TestHTTPLogging(t *testing.T) {
 		resp := w.Result()
 		be.Equal(t, resp.StatusCode, 200)
 
-		be.Equal(be.Require(t), len(h.records), 1)
+		be.Equal(tb.Require(t), len(h.records), 1)
 		attrs := attrMap(h.records[0].Attrs)
 
 		status, _ := attrs["status"].(int64)
