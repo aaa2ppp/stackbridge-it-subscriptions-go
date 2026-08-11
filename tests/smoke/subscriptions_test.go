@@ -13,12 +13,12 @@ import (
 	"testing"
 	"time"
 
-	"subscriptions/internal/api"
-	"subscriptions/internal/config"
-	"subscriptions/internal/lib/logging"
-	"subscriptions/internal/model"
-	"subscriptions/internal/repo/pgrepo"
-	"subscriptions/internal/service"
+	"aaa2ppp/subscriptions/internal/api"
+	"aaa2ppp/subscriptions/internal/config"
+	"aaa2ppp/subscriptions/internal/lib/logging"
+	"aaa2ppp/subscriptions/internal/model"
+	"aaa2ppp/subscriptions/internal/repo/pgrepo"
+	"aaa2ppp/subscriptions/internal/service"
 
 	"github.com/aaa2ppp/be"
 	"github.com/aaa2ppp/be/tb"

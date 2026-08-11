@@ -11,7 +11,7 @@ import (
 	"strings"
 	"time"
 
-	"subscriptions/internal/model"
+	"aaa2ppp/subscriptions/internal/model"
 
 	"github.com/google/uuid"
 )

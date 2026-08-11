@@ -102,10 +102,17 @@ docker-db-shell: ## open psql in db container
 # DEVELOPMENT COMMANDS (local)
 # ============================================
 
-.PHONY: deps check-goose check-swag check-stringer check-tools build swag-generate go-generate generate test clean merge
+.PHONY: init-workspace deps check-goose check-swag check-golangci-lint check-tools build swag-generate go-generate generate test clean merge
+
+init-workspace: ## create/update go.work for local development (includes main module and tests)
+	@test -f go.work || go work init
+	@go work use .
+	@go work use ./tests
+	@echo "Workspace ready: main module + tests"
 
 deps: ## update deps
 	go mod tidy
+	if test -d tests; then cd tests && go mod tidy; fi 
 
 check-goose: ## install goose if need
 	@which goose 2>/dev/null || go install github.com/pressly/goose/v3/cmd/goose@v3.27.1
@@ -113,13 +120,10 @@ check-goose: ## install goose if need
 check-swag: ## install swag if need
 	@which swag 2>/dev/null || go install github.com/swaggo/swag/cmd/swag@v1.16.6
 
-check-stringer: ## install stringer if need
-	@which stringer 2>/dev/null || go install golang.org/x/tools/cmd/stringer@v0.46.0
-
 check-golangci-lint: ## install golangci-lint if need
 	@which golangci-lint 2>/dev/null || go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v2.12.2
 
-check-tools: check-goose check-swag check-stringer check-golangci-lint ## check all tools
+check-tools: check-goose check-swag check-golangci-lint ## check all tools
 
 
 # Находим все поддиректории в cmd, которые потенциально могут быть бинарниками
@@ -153,7 +157,7 @@ lint: ## run linters
 test: ## run tests
 	go test ./internal/...
 
-test-integration: ## run integration tests on real database
+test-integration: init-workspace ## run integration tests on real database
 	go test ./tests/...
 
 clean: ## remove temporary and binary files

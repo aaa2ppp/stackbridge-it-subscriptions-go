@@ -10,10 +10,11 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"strings"
-	"subscriptions/internal/api"
-	"subscriptions/internal/model"
 	"testing"
 	"time"
+
+	"aaa2ppp/subscriptions/internal/api"
+	"aaa2ppp/subscriptions/internal/model"
 
 	"github.com/aaa2ppp/be"
 	"github.com/aaa2ppp/be/tb"

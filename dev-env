@@ -7,11 +7,14 @@ case ":${PATH}:" in
     *) export PATH="$PATH:$gobin" ;;
 esac
 
-if [ -f .env ]; then
-    eval export $(grep -v '^#' .env) && \
-    echo "DONE: .env loaded" >&2 || \
-    echo "FAIL: .env parse error" >&2
-else
+if ! [ -f .env ]; then
     echo "FAIL: .env not found" >&2
-    exit 1
+    return 1
 fi
+
+if ! eval export $(grep -v '^#' .env); then
+    echo "FAIL: .env parse error" >&2 && \
+    return 1
+fi
+
+echo "DONE: .env loaded" >&2

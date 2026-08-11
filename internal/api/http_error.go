@@ -4,7 +4,7 @@ import (
 	"errors"
 	"net/http"
 
-	"subscriptions/internal/model"
+	"aaa2ppp/subscriptions/internal/model"
 )
 
 type httpError struct {

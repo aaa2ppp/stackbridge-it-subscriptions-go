@@ -5,9 +5,10 @@ import (
 	"fmt"
 	"net"
 	"strings"
-	"subscriptions/internal/model"
-	"subscriptions/internal/repo"
-	"subscriptions/internal/service"
+
+	"aaa2ppp/subscriptions/internal/model"
+	"aaa2ppp/subscriptions/internal/repo"
+	"aaa2ppp/subscriptions/internal/service"
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"

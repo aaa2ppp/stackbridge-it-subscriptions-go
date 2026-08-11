@@ -9,12 +9,13 @@ import (
 	"syscall"
 	"time"
 
-	"subscriptions/internal/api"
-	"subscriptions/internal/config"
-	"subscriptions/internal/lib/logging"
-	"subscriptions/internal/repo/pgrepo"
-	"subscriptions/internal/service"
-	"subscriptions/pkg/api/docs"
+	"aaa2ppp/subscriptions/pkg/api/docs"
+
+	"aaa2ppp/subscriptions/internal/api"
+	"aaa2ppp/subscriptions/internal/config"
+	"aaa2ppp/subscriptions/internal/lib/logging"
+	"aaa2ppp/subscriptions/internal/repo/pgrepo"
+	"aaa2ppp/subscriptions/internal/service"
 
 	httpSwagger "github.com/swaggo/http-swagger/v2"
 )

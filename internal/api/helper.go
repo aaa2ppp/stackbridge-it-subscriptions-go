@@ -9,7 +9,7 @@ import (
 	"reflect"
 	"strconv"
 
-	"subscriptions/internal/lib/logging"
+	"aaa2ppp/subscriptions/internal/lib/logging"
 )
 
 const applicationJSON = "application/json"

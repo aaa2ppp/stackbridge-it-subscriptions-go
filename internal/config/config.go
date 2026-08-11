@@ -5,9 +5,9 @@ import (
 	"os"
 	"time"
 
-	"subscriptions/internal/lib/getval"
-	"subscriptions/internal/lib/logging"
-	"subscriptions/internal/repo"
+	"aaa2ppp/subscriptions/internal/lib/getval"
+	"aaa2ppp/subscriptions/internal/lib/logging"
+	"aaa2ppp/subscriptions/internal/repo"
 )
 
 type Logger = logging.Config

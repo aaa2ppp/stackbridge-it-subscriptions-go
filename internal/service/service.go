@@ -3,8 +3,9 @@ package service
 import (
 	"context"
 	"fmt"
-	"subscriptions/internal/api"
-	"subscriptions/internal/model"
+
+	"aaa2ppp/subscriptions/internal/api"
+	"aaa2ppp/subscriptions/internal/model"
 )
 
 type Repository interface {
