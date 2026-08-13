@@ -3,13 +3,14 @@ kind: Job
 metadata:
   name: migrate
 spec:
-  ttlSecondsAfterFinished: 300
+  backoffLimit: 3
+  activeDeadlineSeconds: 300 
   template:
     spec:
-      restartPolicy: Never
+      restartPolicy: OnFailure
       containers:
       - name: migrate
-        image: subscriptions/migrate:v0.0.1
+        image: ${MIGRATE_IMG}
         env:
         - name: DB_ADDR
           valueFrom:

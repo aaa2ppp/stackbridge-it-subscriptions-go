@@ -3,7 +3,7 @@ kind: Deployment
 metadata:
   name: server
 spec:
-  replicas: 0
+  replicas: ${REPLICAS}
   selector:
     matchLabels:
       app: server
@@ -14,7 +14,7 @@ spec:
     spec:
       containers:
       - name: server
-        image: subscriptions/server:v0.0.1
+        image: ${SERVER_IMG}
         ports:
         - containerPort: 8080
         env:

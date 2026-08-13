@@ -1,88 +1,141 @@
-TMP_DIR  := ./tmp
-IMG_DIR  := ./images
-PROJECT  := subscriptions
-VER      ?= v0.0.1
-REPLICAS := 3
+PROJECT   := subscriptions
+NAMESPACE ?= $(PROJECT)
+TAG       ?= v0.0.1
+REPLICAS  ?= 3
+TIMEOUT   ?= 60s
 
-create: ns-create \
-	migrate-build migrate-install \
-	server-build server-install \
-	db-create server-create \
-	migrate-run server-start
+SERVER_IMG  := $(PROJECT)/server:$(TAG)
+MIGRATE_IMG := $(PROJECT)/migrate:$(TAG)
 
-reload: server-reload
+CHECK_SOCKET := if [ ! -w /run/k3s/containerd/containerd.sock ]; then \
+		echo "ERROR: No write access to /run/k3s/containerd/containerd.sock" >&2; \
+		echo "Check rights to socket and config /etc/rancher/k3s/config.yaml" >&2; \
+		exit 1; \
+	fi
 
-reload-with-migrate: migrate-build migrate-install \
-	server-build server-install \
-	server-stop \
-	migrate-run \
-	server-start
+LOAD_IMAGE := $(CHECK_SOCKET) && docker save $$image | k3s ctr images import -
 
-clean:
-	-rm -fr $(TMP_DIR) $(IMG_DIR)
+# ==============================================================================
+# ОСНОВНЫЕ ЦЕЛИ
+# ==============================================================================
+.PHONY: all build load  update destroy clean help
+.NOTPARALLEL: all .deploy-steps update destroy
 
-# ---------- Инфраструктура (создаётся один раз) ----------
+all: build load .deploy-steps
+
+build: srv-build mig-build
+
+load: srv-load mig-load
+
+.PHONY: .deploy-steps
+.deploy-steps: \
+	ns-create \
+	env-init \
+	srv-stop \
+	db-apply \
+	db-wait srv-wait-stop mig-run \
+	mig-wait srv-apply
+
+status:
+	@kubectl get all -n $(NAMESPACE)
+
+update: \
+	srv-build \
+	srv-load \
+	srv-restart
+
+.PHONY: .destroy-confirm
+.destroy-confirm:
+	@read -p "Are you sure? This will remove ALL resources in $(NAMESPACE), including the database! (y/N) " confirm; \
+	if [ "$$confirm" != "y" ] && [ "$$confirm" != "Y" ]; then \
+		echo "Aborted." >&2; \
+		exit 1; \
+	fi
+
+destroy: .destroy-confirm ns-delete
+
+help:
+	@echo "Основные цели:"
+	@echo "  all      – сборка + загрузка + полный деплой"
+	@echo "  update   – сборка + загрузка + рестарт сервера (без миграций)"
+	@echo "  destroy  – уничтожить ВСЕ! (включая данные базы)"
+
+# ==============================================================================
+# ОКРУЖЕНИЕ
+# ==============================================================================
+.PHONY: ns-create ns-delete env-init
+
 ns-create:
-	kubectl create namespace $(PROJECT) 2>/dev/null || true
-	kubectl apply -n $(PROJECT) -f 00-configmap.yaml
-	@kubectl get secret db-secret -n $(PROJECT) >/dev/null 2>&1 || \
-		kubectl create secret generic db-secret -n $(PROJECT) \
+	kubectl create namespace $(NAMESPACE) 2>/dev/null || true
+
+ns-delete: ## destroy all!
+	kubectl delete namespace $(NAMESPACE) --ignore-not-found
+
+env-init:
+	kubectl apply -n $(NAMESPACE) -f cfg/configmap.yaml
+
+	@kubectl get secret db-secret -n $(NAMESPACE) >/dev/null 2>&1 || \
+		kubectl create secret generic db-secret -n $(NAMESPACE) \
 		--from-literal=DB_PASSWORD="$$(head -c16 /dev/urandom | base64)"
-	kubectl apply -n $(PROJECT) -f 03-db-service.yaml
-	kubectl apply -n $(PROJECT) -f 06-server-service.yaml
 
-ns-destroy: ## destroy all!
-	kubectl delete namespace $(PROJECT)
+	kubectl apply -n $(NAMESPACE) -f cfg/db-service.yaml 
+	kubectl apply -n $(NAMESPACE) -f cfg/server-service.yaml 
 
-# ---------- База данных ----------
-db-create: ns-create
-	kubectl apply -n $(PROJECT) -f 02-db-statefulset.yaml
+# ==============================================================================
+# БАЗА ДАННЫХ
+# ==============================================================================
+.PHONY: db-apply db-wait db-delete
 
-db-delete:
-	kubectl delete -n $(PROJECT) -f 02-db-statefulset.yaml   # StatefulSet удаляется, PVC остаётся
+db-apply:
+	kubectl apply -n $(NAMESPACE) -f cfg/db-statefulset.yaml
 
-# ---------- Миграции ----------
-migrate-build:
-	@mkdir -p $(TMP_DIR)
-	@mkdir -p $(IMG_DIR)
-	docker build -t $(PROJECT)/migrate:$(VER) --target migrate ./..
-	docker save $(PROJECT)/migrate:$(VER) -o $(TMP_DIR)/migrate-$(VER).tar.$$$$ && \
-	mv $(TMP_DIR)/migrate-$(VER).tar.$$$$ $(IMG_DIR)/migrate-$(VER).tar
+db-wait:
+	kubectl wait -n $(NAMESPACE) --for=create --for=condition=ready pod -l app=db --timeout=$(TIMEOUT)
 
-migrate-install:
-	k3s ctr images import $(IMG_DIR)/migrate-$(VER).tar
+db-delete: # StatefulSet удаляется, PVC остаётся
+	kubectl delete -n $(NAMESPACE) -f cfg/db-statefulset.yaml   
 
-# Запустить миграцию
-migrate-run:
-	kubectl delete job migrate -n $(PROJECT) --ignore-not-found
-	kubectl wait -n $(PROJECT) --for=condition=ready --for=create pod -l app=db --timeout=60s
-	kubectl apply -n $(PROJECT) -f 04-migrate-job.yaml
-	kubectl wait -n $(PROJECT) --for=condition=complete --for=create job/migrate --timeout=60s
+# ==============================================================================
+# МИГРАЦИИ
+# ==============================================================================
+.PHONY: mig-build mig-load mig-run
 
-# ---------- Сервер ----------
-server-build:
-	@mkdir -p $(TMP_DIR)
-	@mkdir -p $(IMG_DIR)
-	docker build -t $(PROJECT)/server:$(VER) --target server ./..
-	docker save $(PROJECT)/server:$(VER) -o $(TMP_DIR)/server-$(VER).tar.$$$$ && \
-	mv $(TMP_DIR)/server-$(VER).tar.$$$$ $(IMG_DIR)/server-$(VER).tar
+mig-build:
+	docker build -t $(MIGRATE_IMG) --target migrate ./..
 
-server-install:
-	k3s ctr images import $(IMG_DIR)/server-$(VER).tar
+mig-load:
+	@echo load image: $(MIGRATE_IMG) ...
+	@image=$(MIGRATE_IMG); $(LOAD_IMAGE)
 
-# Создать/обновить Deployment (один раз)
-server-create:
-	kubectl apply -n $(PROJECT) -f 05-server-deployment.yaml
+mig-run:
+	kubectl delete job migrate -n $(NAMESPACE) --ignore-not-found
+	env -i MIGRATE_IMG=$(MIGRATE_IMG) \
+		envsubst < cfg/migrate-job.yaml | kubectl apply -n $(NAMESPACE) -f -
 
-# Запустить поды (масштабировать до REPLICAS)
-server-start:
-	kubectl scale -n $(PROJECT) deployment/server --replicas=$(REPLICAS)
+mig-wait:
+	kubectl wait -n $(NAMESPACE) --for=create --for=condition=complete job/migrate --timeout=$(TIMEOUT)
 
-# Остановить поды (масштабировать до 0)
-server-stop:
-	kubectl scale -n $(PROJECT) deployment/server --replicas=0
+# ==============================================================================
+# СЕРВЕР
+# ==============================================================================
+.PHONY: srv-build srv-load srv-apply srv-stop srv-wait-stop
 
-# Пересобрать, загрузить и перезапустить (без остановки)
-server-reload: server-build server-install
-	kubectl rollout restart -n $(PROJECT) deployment/server
-	kubectl rollout status -n $(PROJECT) deployment/server
+srv-build:
+	docker build -t $(SERVER_IMG) --target server ./..
+
+srv-load:
+	@echo load image: $(SERVER_IMG) ...
+	@image=$(SERVER_IMG); $(LOAD_IMAGE)
+	
+srv-apply:
+	env -i SERVER_IMG=$(SERVER_IMG) REPLICAS=$(REPLICAS) \
+		envsubst < cfg/server-deployment.yaml | kubectl apply -n $(NAMESPACE) -f -
+
+srv-stop:
+	kubectl scale -n $(NAMESPACE) deployment/server --replicas=0 2>/dev/null || true
+
+srv-wait-stop:
+	kubectl wait -n $(NAMESPACE) --for=delete pod -l app=server --timeout=$(TIMEOUT)
+
+srv-restart:
+	kubectl rollout restart -n $(NAMESPACE) deployment/server
