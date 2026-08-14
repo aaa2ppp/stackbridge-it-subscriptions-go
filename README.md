@@ -46,6 +46,11 @@ make run
 make docker-run
 ```
 
+### Локальный кластер Kubernetes (k3s)
+
+Для разработки и тестирования в окружении, приближенном к продакшену, в каталоге `k3s/` подготовлены манифесты и Makefile.  
+Подробная инструкция — в файле [K3S.md](K3S.md).
+
 ### Swagger
 
 По умолчанию Swagger доступен на [http://localhost:8080/swagger/](http://localhost:8080/swagger/)

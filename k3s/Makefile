@@ -3,6 +3,7 @@ NAMESPACE ?= $(PROJECT)
 TAG       ?= v0.0.1
 REPLICAS  ?= 3
 TIMEOUT   ?= 60s
+SERVER_NODE_PORT ?= 30080
 
 SERVER_IMG  := $(PROJECT)/server:$(TAG)
 MIGRATE_IMG := $(PROJECT)/migrate:$(TAG)
@@ -18,7 +19,7 @@ LOAD_IMAGE := $(CHECK_SOCKET) && docker save $$image | k3s ctr images import -
 # ==============================================================================
 # ОСНОВНЫЕ ЦЕЛИ
 # ==============================================================================
-.PHONY: all build load  update destroy clean help
+.PHONY: all build load  update destroy help
 .NOTPARALLEL: all .deploy-steps update destroy
 
 all: build load .deploy-steps
@@ -59,6 +60,8 @@ help:
 	@echo "  all      – сборка + загрузка + полный деплой"
 	@echo "  update   – сборка + загрузка + рестарт сервера (без миграций)"
 	@echo "  destroy  – уничтожить ВСЕ! (включая данные базы)"
+	@echo "  help     - вывод этой справки"
+	
 
 # ==============================================================================
 # ОКРУЖЕНИЕ
@@ -79,7 +82,8 @@ env-init:
 		--from-literal=DB_PASSWORD="$$(head -c16 /dev/urandom | base64)"
 
 	kubectl apply -n $(NAMESPACE) -f cfg/db-service.yaml 
-	kubectl apply -n $(NAMESPACE) -f cfg/server-service.yaml 
+	env -i SERVER_NODE_PORT=$(SERVER_NODE_PORT) \
+			envsubst < cfg/server-service.yaml | kubectl apply -n $(NAMESPACE) -f -
 
 # ==============================================================================
 # БАЗА ДАННЫХ
