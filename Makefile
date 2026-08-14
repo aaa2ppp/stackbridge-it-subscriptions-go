@@ -54,11 +54,12 @@ all: help
 # ============================================
 
 .PHONY: run docker-run
+.NOTPARALLEL: run docker-run
 
 run: generate lint test build db-up migrate-up ## run server (local)
 	$(BIN_DIR)/server
 
-docker-run: docker-build docker-up ## run server in docker
+docker-run: generate docker-build docker-up ## run server in docker
 	$(DOCKER_COMPOSE) logs -f $(APP_SERVICE) $(MIGRATE_SERVICE)
 
 # ============================================
@@ -202,7 +203,7 @@ migrate-status: ## show migration status (local)
 # UTILS
 # ============================================
 
-.PHONY: FORCE help
+.PHONY: FORCE patch help 
 
 FORCE:
 
@@ -210,7 +211,8 @@ merge: ## merge code to file for AI review
 	@mkdir -p $(TMP_DIR)
 	$(MERGE_CODE) $(SRC) > $(TMP_DIR)/$(DST).code 
 
-patch: deps generate test ## make precommit patch
+.NOTPARALLEL: patch
+patch: deps generate lint test build ## make precommit patch
 	@mkdir -p $(TMP_DIR)
 	
 	@(set -e; \
