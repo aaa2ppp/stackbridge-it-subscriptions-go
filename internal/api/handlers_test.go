@@ -317,12 +317,10 @@ func TestHandlers(t *testing.T) {
 		},
 		// --- Get ------------------------------------------------------------
 		{
-			"get: success",
-			"GET /subscriptions/42",
-			"",
-			``,
-			int64(42),
-			mockService{
+			name:    "get: success",
+			query:   "GET /subscriptions/42",
+			wantReq: int64(42),
+			svc: mockService{
 				get: func(id int64) (model.Subscription, error) {
 					return model.Subscription{
 						ID:          42,
@@ -334,8 +332,8 @@ func TestHandlers(t *testing.T) {
 					}, nil
 				},
 			},
-			200,
-			`{
+			wantStatusCode: 200,
+			wantBody: `{
 				"id":           42,
 				"service_name": "Yandex Plus",
 				"price":        400,
@@ -581,7 +579,7 @@ func TestHandlers(t *testing.T) {
 			wantBody:       `{"total_cost":1000}`,
 		},
 		{
-			name:  "total enpty query",
+			name:  "total empty query",
 			query: "GET /subscriptions/total",
 			wantReq: model.SubscriptionFilter{
 				FromDate: MonthYear(1, 1),
